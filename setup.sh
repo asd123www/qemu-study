@@ -1,7 +1,7 @@
 sudo apt update
 
 # qemu dependency.
-sudo apt-get install linux-generic libelf-dev -y
+sudo apt-get install linux-generic libelf-dev socat -y
 sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.
