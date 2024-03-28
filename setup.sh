@@ -55,6 +55,6 @@ cd ..
 
 # Creating an image for the kernelPermalink
 sudo apt-get install debootstrap
-cd kerne-image
+cd kernel-image
 chmod +x create-image.sh
 sudo ./create-image.sh
