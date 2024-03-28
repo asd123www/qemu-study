@@ -33,7 +33,7 @@ else
 fi
 
 cd qemu-master
-./configure --target-list=x86_64-softmmu --enable-kvm  --enable-user-network
+./configure --target-list=x86_64-softmmu --enable-kvm
 make -j
 sudo make install
 cd ..
