@@ -36,10 +36,7 @@ cd qemu-master
 ./configure --target-list=x86_64-softmmu --enable-kvm
 make -j
 sudo make install
-
-# create 
-qemu-img create -f qcow2 ~/vm_image.qcow2 20G
-qemu-system-x86_64 -enable-kvm -m 4096 -nographic -cpu host -hda ~/vm_image.qcow2 -cdrom ~/ubuntu-20.04.6-live-server-amd64.iso -boot d
+cd ..
 
 # compile Linux code.
 KERNEL_VER=5.10.54
@@ -54,6 +51,7 @@ CONFIG_HAVE_KVM=y
 CONFIG_PTP_1588_CLOCK_KVM=y
 make olddefconfig
 make -j
+cd ..
 
 # Creating an image for the kernelPermalink
 sudo apt-get install debootstrap
