@@ -1,7 +1,8 @@
 sudo apt update
 
 # qemu dependency.
-sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison -y
+sudo apt-get install linux-generic libelf-dev -y
+sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.
 sudo apt-get install git-email -y
@@ -36,3 +37,26 @@ cd qemu-master
 make -j
 sudo make install
 
+# create 
+qemu-img create -f qcow2 ~/vm_image.qcow2 20G
+qemu-system-x86_64 -enable-kvm -m 4096 -nographic -cpu host -hda ~/vm_image.qcow2 -cdrom ~/ubuntu-20.04.6-live-server-amd64.iso -boot d
+
+# compile Linux code.
+KERNEL_VER=5.10.54
+echo "Use Linux-$KERNEL_VER"
+wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
+tar xvf linux-$KERNEL_VER.tar.xz
+cd linux-$KERNEL_VER
+make defconfig
+make kvmconfig
+CONFIG_KVM_GUEST=y
+CONFIG_HAVE_KVM=y
+CONFIG_PTP_1588_CLOCK_KVM=y
+make olddefconfig
+make -j
+
+# Creating an image for the kernelPermalink
+sudo apt-get install debootstrap
+cd kerne-image
+chmod +x create-image.sh
+sudo ./create-image.sh
