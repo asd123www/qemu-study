@@ -44,6 +44,10 @@ static COLOMode last_colo_mode;
 
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
+/* asd123www.
+ * colo: https://wiki.qemu.org/Features/COLO
+ * VM replication, doesn't matter in our context.
+ */
 bool migration_in_colo_state(void)
 {
     MigrationState *s = migrate_get_current();
