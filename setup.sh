@@ -1,7 +1,7 @@
 sudo apt update
 
 # qemu dependency.
-sudo apt-get install linux-generic libelf-dev socat -y
+sudo apt-get install linux-generic libelf-dev socat libslirp0 slirp -y
 sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.
@@ -33,7 +33,7 @@ else
 fi
 
 cd qemu-master
-./configure --target-list=x86_64-softmmu --enable-kvm
+./configure --target-list=x86_64-softmmu --enable-kvm --enable-slirp
 make -j
 sudo make install
 cd ..

@@ -8,11 +8,13 @@ The experiment is based on the `xl170` machine in Cloudlab with `kernel 5.4.0-16
 sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-smp 2 \
-		-m 4G \
+		-m 2G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=./kernel-image/bullseye.img,format=raw \
-		-append "console=ttyS0 root=/dev/sda" \
+		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
+		-net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
+		-net nic,model=e1000 \
 		-monitor unix:qemu-monitor-migration,server,nowait
 ```
 
@@ -22,11 +24,13 @@ The `-monitor` option creates a Unix socket file for further monitoring the VM. 
 sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-smp 2 \
-		-m 4G \
+		-m 2G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=./kernel-image/bullseye.img,format=raw \
-		-append "console=ttyS0 root=/dev/sda" \
+		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
+		-net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
+		-net nic,model=e1000 \
 		-incoming tcp:0:4444
 ```
 
