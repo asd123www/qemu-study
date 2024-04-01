@@ -7,6 +7,7 @@ The experiment is based on the `xl170` machine in Cloudlab with `kernel 5.4.0-16
 ```
 sudo qemu-system-x86_64 \
 		--enable-kvm \
+		-smp 2 \
 		-m 4G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
@@ -20,6 +21,7 @@ The `-monitor` option creates a Unix socket file for further monitoring the VM. 
 ```
 sudo qemu-system-x86_64 \
 		--enable-kvm \
+		-smp 2 \
 		-m 4G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
@@ -30,5 +32,5 @@ sudo qemu-system-x86_64 \
 
 The `-incoming` option specifies the listening TCP port. I didn't explore other transport protocols. 
 
-Now both the source and dest machines are ready for the migration. We can issue the migration by `migrate -d tcp:10.10.1.2:4444` in the monitor.
+Now both the source and dest machines are ready for the migration. We can issue the migration by `migrate -d tcp:10.10.1.2:4444` in the monitor. Check this [blog](https://wiki.gentoo.org/wiki/QEMU/Options) for more options.
 

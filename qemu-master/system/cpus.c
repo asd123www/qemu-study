@@ -166,6 +166,7 @@ void cpu_synchronize_all_pre_loadvm(void)
     }
 }
 
+// calling `kvm_cpu_synchronize_state` if you enable kvm.
 void cpu_synchronize_state(CPUState *cpu)
 {
     if (cpus_accel->synchronize_state) {
@@ -275,6 +276,7 @@ bool vm_get_suspended(void)
     return vm_was_suspended;
 }
 
+// stop the cpu & flush the device state(complete all I/O operations).
 static int do_vm_stop(RunState state, bool send_stop)
 {
     int ret = 0;
@@ -285,6 +287,7 @@ static int do_vm_stop(RunState state, bool send_stop)
         runstate_set(state);
         cpu_disable_ticks();
         if (oldstate == RUN_STATE_RUNNING) {
+            // stop all cpu threads.
             pause_all_vcpus();
         }
         vm_state_notify(0, state);
@@ -293,6 +296,7 @@ static int do_vm_stop(RunState state, bool send_stop)
         }
     }
 
+    // flush in-fly I/O operations.
     bdrv_drain_all();
     ret = bdrv_flush_all();
     trace_vm_stop_flush_all(ret);
@@ -681,8 +685,10 @@ void cpu_stop_current(void)
     }
 }
 
+// `do_vm_stop`
 int vm_stop(RunState state)
 {
+    // this code path is not active.
     if (qemu_in_vcpu_thread()) {
         qemu_system_vmstop_request_prepare();
         qemu_system_vmstop_request(state);
@@ -694,6 +700,7 @@ int vm_stop(RunState state)
         return 0;
     }
 
+    // we are here.
     return do_vm_stop(state, true);
 }
 
@@ -763,6 +770,7 @@ void vm_resume(RunState state)
 int vm_stop_force_state(RunState state)
 {
     if (runstate_is_live(runstate_get())) {
+        // code path is here.
         return vm_stop(state);
     } else {
         int ret;

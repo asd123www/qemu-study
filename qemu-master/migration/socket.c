@@ -62,7 +62,7 @@ QIOChannel *socket_send_channel_create_sync(Error **errp)
 
 struct SocketConnectData {
     MigrationState *s;
-    char *hostname;
+    char *hostname; // the dest machine hostname
 };
 
 static void socket_connect_data_free(void *opaque)
@@ -75,6 +75,7 @@ static void socket_connect_data_free(void *opaque)
     g_free(data);
 }
 
+// after building connection with the dest, send data.
 static void socket_outgoing_migration(QIOTask *task,
                                       gpointer opaque)
 {
@@ -82,6 +83,7 @@ static void socket_outgoing_migration(QIOTask *task,
     QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
+    // error handling, we don't trigger this.
     if (qio_task_propagate_error(task, &err)) {
         trace_migration_socket_outgoing_error(error_get_pretty(err));
            goto out;
@@ -89,6 +91,7 @@ static void socket_outgoing_migration(QIOTask *task,
 
     trace_migration_socket_outgoing_connected(data->hostname);
 
+    // zero-copy option.
     if (migrate_zero_copy_send() &&
         !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY)) {
         error_setg(&err, "Zero copy send feature not detected in host kernel");
@@ -99,6 +102,7 @@ out:
     object_unref(OBJECT(sioc));
 }
 
+// VM migration at source when using socket as transport.
 void socket_start_outgoing_migration(MigrationState *s,
                                      SocketAddress *saddr,
                                      Error **errp)

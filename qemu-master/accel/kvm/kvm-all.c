@@ -2710,6 +2710,7 @@ static void do_kvm_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
     }
 }
 
+// `cpu_synchronize_state` is a wrapper of this function.
 void kvm_cpu_synchronize_state(CPUState *cpu)
 {
     if (!cpu->vcpu_dirty) {

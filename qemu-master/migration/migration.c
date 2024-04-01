@@ -96,7 +96,7 @@ enum mig_rp_message_type {
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
 
-static MigrationState *current_migration;
+static MigrationState *current_migration; // the VM to be migrated?
 static MigrationIncomingState *current_incoming;
 
 static GSList *migration_blockers[MIG_MODE__MAX];
@@ -109,6 +109,7 @@ static void migrate_fd_cancel(MigrationState *s);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
 
+// store the start of the VM downtime.
 static void migration_downtime_start(MigrationState *s)
 {
     trace_vmstate_downtime_checkpoint("src-downtime-start");
@@ -190,12 +191,14 @@ static gint page_request_addr_cmp(gconstpointer ap, gconstpointer bp)
     return (a > b) - (a < b);
 }
 
+// stop vm.
 static int migration_stop_vm(MigrationState *s, RunState state)
 {
     int ret;
 
     migration_downtime_start(s);
 
+    // store old state in case we need to restart.
     s->vm_old_state = runstate_get();
     global_state_store();
 
@@ -322,7 +325,7 @@ void migration_shutdown(void)
     dirty_bitmap_mig_cancel_incoming();
 }
 
-/* For outgoing */
+/* asd123www: For outgoing */
 MigrationState *migrate_get_current(void)
 {
     /* This can only be called after the object created. */
@@ -2037,6 +2040,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     return true;
 }
 
+// asd123www: QEMU Machine Protocol migrate. Starting point of the migration.
 void qmp_migrate(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
@@ -2085,6 +2089,8 @@ void qmp_migrate(const char *uri, bool has_channels,
         return;
     }
 
+    // if this migration is a new one, we should register.
+    // yank: I take it as an interrupt mechanism that can interact with the VM outside the normal control flow.
     if (!resume_requested) {
         if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
             return;
@@ -2116,6 +2122,7 @@ void qmp_migrate(const char *uri, bool has_channels,
         block_cleanup_parameters();
     }
 
+    // error handling.
     if (local_err) {
         if (!resume_requested) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -2712,6 +2719,7 @@ static int migration_maybe_pause(MigrationState *s,
     return s->state == new_state ? 0 : -EINVAL;
 }
 
+// The completion logic in precopy.
 static int migration_completion_precopy(MigrationState *s,
                                         int *current_active_state)
 {
@@ -2719,7 +2727,9 @@ static int migration_completion_precopy(MigrationState *s,
 
     bql_lock();
 
+    // What is CPR? checkpoint & reboot?
     if (!migrate_mode_is_cpr(s)) {
+        // normal code path is here.
         ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
         if (ret < 0) {
             goto out_unlock;
@@ -2738,6 +2748,8 @@ static int migration_completion_precopy(MigrationState *s,
      */
     s->block_inactive = !migrate_colo();
     migration_rate_set(RATE_LIMIT_DISABLED);
+
+    // save the state: cpu registers, interrupts.
     ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
                                              s->block_inactive);
 out_unlock:
@@ -2790,7 +2802,7 @@ static void migration_completion_failed(MigrationState *s,
 }
 
 /**
- * migration_completion: Used by migration_thread when there's not much left.
+ * migration_completion: Used by migration_thread when there's not much data to be transferred.
  *   The caller 'breaks' the loop when this returns.
  *
  * @s: Current migration state
@@ -2801,6 +2813,7 @@ static void migration_completion(MigrationState *s)
     int current_active_state = s->state;
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
+        // code path is here.
         ret = migration_completion_precopy(s, &current_active_state);
     } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         migration_completion_postcopy(s);
@@ -3193,7 +3206,8 @@ typedef enum {
     MIG_ITERATE_BREAK,          /* Break the loop */
 } MigIterateState;
 
-/*
+/* asd123www: The logic inside an iteration. Very intuitive, check the details later.
+ *
  * Return true if continue to the next iteration directly, false
  * otherwise.
  */
@@ -3402,7 +3416,7 @@ static void qemu_savevm_wait_unplug(MigrationState *s, int old_state,
     }
 }
 
-/*
+/* asd123www: a dedicated thread doing migration work.
  * Master migration thread on the source VM.
  * It drives the migration and pumps the data down the outgoing channel.
  */
@@ -3414,6 +3428,7 @@ static void *migration_thread(void *opaque)
     MigThrError thr_error;
     bool urgent = false;
 
+    // add itself to `migration_threads` list.
     thread = migration_threads_add("live_migration", qemu_get_thread_id());
 
     rcu_register_thread();
@@ -3455,6 +3470,7 @@ static void *migration_thread(void *opaque)
         qemu_savevm_send_colo_enable(s->to_dst_file);
     }
 
+    // dirty pages before live-migration.
     bql_lock();
     qemu_savevm_state_setup(s->to_dst_file);
     bql_unlock();
@@ -3466,6 +3482,7 @@ static void *migration_thread(void *opaque)
 
     trace_migration_thread_setup_complete();
 
+    // asd123www: the iteration loop, send dirty pages and break if a condition met.
     while (migration_is_active()) {
         if (urgent || !migration_rate_exceeded(s->to_dst_file)) {
             MigIterateState iter_state = migration_iteration_run(s);
@@ -3496,7 +3513,7 @@ static void *migration_thread(void *opaque)
         urgent = migration_rate_limit();
     }
 
-out:
+out: // clean
     trace_migration_thread_after_loop();
     migration_iteration_finish(s);
     object_unref(OBJECT(s));
@@ -3651,6 +3668,7 @@ fail:
     return NULL;
 }
 
+// asd123www: enable different migration options, like post-copy.
 void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
@@ -3700,6 +3718,10 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     qemu_file_set_blocking(s->to_dst_file, true);
 
     /*
+     * asd123www: normally we only need a unidirectional data channel, from src to dst.
+     * However, in post-copy or other cases, we might want the dst can actively send data to the src.
+     * That is return path: bidirectional data channel.
+     * 
      * Open the return path. For postcopy, it is used exclusively. For
      * precopy, only if user specified "return-path" capability would
      * QEMU uses the return path.
@@ -3740,6 +3762,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         qemu_thread_create(&s->thread, "bg_snapshot",
                 bg_migration_thread, s, QEMU_THREAD_JOINABLE);
     } else {
+        // asd123www: create a new thread doing live-migration.
         qemu_thread_create(&s->thread, "live_migration",
                 migration_thread, s, QEMU_THREAD_JOINABLE);
     }

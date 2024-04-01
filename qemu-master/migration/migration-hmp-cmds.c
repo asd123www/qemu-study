@@ -765,13 +765,24 @@ static void hmp_migrate_status_cb(void *opaque)
     qapi_free_MigrationInfo(info);
 }
 
+// Human Monitor Protocol, the entrance of migration from our command line.
 void hmp_migrate(Monitor *mon, const QDict *qdict)
 {
     bool detach = qdict_get_try_bool(qdict, "detach", false);
     bool blk = qdict_get_try_bool(qdict, "blk", false);
     bool inc = qdict_get_try_bool(qdict, "inc", false);
     bool resume = qdict_get_try_bool(qdict, "resume", false);
-    const char *uri = qdict_get_str(qdict, "uri");
+    const char *uri = qdict_get_str(qdict, "uri"); // the destination address.
+
+    // if (uri != NULL) {
+    //     puts("\nThe uri is not empty:");
+    //     int len = strlen(uri);
+    //     for(int i = 0; i < len; ++i) putchar(uri[i]);
+    //     puts("");
+    // } else {
+    //     puts("\nThe uri is empty.");
+    // }
+
     Error *err = NULL;
     g_autoptr(MigrationChannelList) caps = NULL;
     g_autoptr(MigrationChannel) channel = NULL;

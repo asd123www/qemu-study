@@ -2387,6 +2387,7 @@ static uint64_t ram_bytes_total_with_ignored(void)
     return total;
 }
 
+// total memory bytes.
 uint64_t ram_bytes_total(void)
 {
     RAMBlock *block;
@@ -2806,7 +2807,13 @@ static void ram_list_init_bitmaps(void)
 
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
+        /* asd123www:
+         * this shift is an optimization to log_clear.
+         * Check this for more details: https://lists.sr.ht/~philmd/qemu/%3C20190530092919.26059-1-peterx@redhat.com%3E.
+         * Seems related to `kvm_clear_dirty_log_protect`, I guess this parameter is tuning the tradeoff between granularity and kvm syscall overhead.
+         */
         shift = ms->clear_bitmap_shift;
+        // default shift value is 18.
         if (shift > CLEAR_BITMAP_SHIFT_MAX) {
             error_report("clear_bitmap_shift (%u) too big, using "
                          "max value (%u)", shift, CLEAR_BITMAP_SHIFT_MAX);
@@ -2852,10 +2859,17 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
     }
 }
 
+// dirty the pages in bitmap.
 static void ram_init_bitmaps(RAMState *rs)
 {
+    /* asd123www: why we need a lock?
+     * In `./system/physmem.c` file, we also need a lock when add/free the ram.
+     * So likely we need to protect the ramlist, metadata from being inconsistent.
+     * But I don't the how qemu manages the memory in conert with kvm.
+     */
     qemu_mutex_lock_ramlist();
 
+    // RCU read lock.
     WITH_RCU_READ_LOCK_GUARD() {
         ram_list_init_bitmaps();
         /* We don't use dirty log with background snapshots */
@@ -2873,6 +2887,7 @@ static void ram_init_bitmaps(RAMState *rs)
     migration_bitmap_clear_discarded_pages(rs);
 }
 
+// Initialize the RAMState object and dirty the bitmap.
 static int ram_init_all(RAMState **rsp)
 {
     if (ram_state_init(rsp)) {
@@ -3060,7 +3075,7 @@ static bool mapped_ram_read_header(QEMUFile *file, MappedRamHeader *header,
  */
 
 /**
- * asd123www: called only once before migration.
+ * asd123www: RAM device save setup, called by `qemu_savevm_state_setup`.
  * 
  * ram_save_setup: Setup RAM for migration
  *
@@ -3071,7 +3086,7 @@ static bool mapped_ram_read_header(QEMUFile *file, MappedRamHeader *header,
  */
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
-    RAMState **rsp = opaque;
+    RAMState **rsp = opaque; // ram_state, check `register_savevm_live`.
     RAMBlock *block;
     int ret, max_hg_page_size;
 
@@ -3082,7 +3097,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        // in our experiment, we will be here. but seems won't go inside next if.
+        // Initialize the RAMState object and set the 
         if (ram_init_all(rsp) != 0) {
             compress_threads_save_cleanup();
             return -1;
@@ -3101,6 +3116,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
                          | RAM_SAVE_FLAG_MEM_SIZE);
 
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
+
             qemu_put_byte(f, strlen(block->idstr));
             qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
             qemu_put_be64(f, block->used_length);

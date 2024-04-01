@@ -546,6 +546,7 @@ static void *qemu_thread_start(void *args)
     return r;
 }
 
+// create a posix thread and do the `start_routine` work.
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
                        void *arg, int mode)

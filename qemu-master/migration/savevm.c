@@ -766,7 +766,8 @@ static void savevm_state_handler_remove(SaveStateEntry *se)
     QTAILQ_REMOVE(&savevm_state.handlers, se, entry);
 }
 
-/* TODO: Individual devices generally have very little idea about the rest
+/* Insert a device memory for live migration.
+   TODO: Individual devices generally have very little idea about the rest
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
    distinguishing id for all instances of your device class. */
@@ -1312,6 +1313,8 @@ int qemu_savevm_state_prepare(Error **errp)
     return 0;
 }
 
+// asd123www: in this function, we will call each device's registered save function.
+// ram will register the `savevm_ram_handlers`, therefore we will call `ram_save_setup`.
 void qemu_savevm_state_setup(QEMUFile *f)
 {
     MigrationState *ms = migrate_get_current();
@@ -1343,6 +1346,8 @@ void qemu_savevm_state_setup(QEMUFile *f)
         }
         save_section_header(f, se, QEMU_VM_SECTION_START);
 
+        // Here `se->ops` points to `savevm_ram_handlers`.
+        // Therefore, this will jump to `ram_save_setup()` in `ram.c`.
         ret = se->ops->save_setup(f, se->opaque);
         save_section_footer(f, se);
         if (ret < 0) {
@@ -1614,9 +1619,11 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
 
     trace_savevm_state_complete_precopy();
 
+    // save all cpu states.
     cpu_synchronize_all_states();
 
     if (!in_postcopy || iterable_only) {
+        // iterable: RAM.
         ret = qemu_savevm_state_complete_precopy_iterable(f, in_postcopy);
         if (ret) {
             return ret;
@@ -1627,6 +1634,7 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
         goto flush;
     }
 
+    // non-iterable: other devices.
     ret = qemu_savevm_state_complete_precopy_non_iterable(f, in_postcopy,
                                                           inactivate_disks);
     if (ret) {
