@@ -1,7 +1,7 @@
 sudo apt update
 
 # qemu dependency.
-sudo apt-get install linux-generic libelf-dev socat libslirp0 slirp -y
+sudo apt-get install linux-generic libelf-dev socat -y
 sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.
@@ -37,6 +37,8 @@ cd qemu-master
 make -j
 sudo make install
 cd ..
+
+sudo apt install libslirp0 -y
 
 # compile Linux code.
 KERNEL_VER=5.10.54
