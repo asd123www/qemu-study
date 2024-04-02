@@ -60,3 +60,14 @@ sudo apt-get install debootstrap
 cd kernel-image
 chmod +x create-image.sh
 sudo ./create-image.sh
+
+# Setup the network bridge for public VM IP address.
+sudo ip link add br0 type bridge
+sudo ip link set br0 up
+sudo ip link set ens1f1 master br0
+ip_addr=$(ip addr show ens1f1 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
+sudo ip addr flush dev ens1f1 
+sudo ip addr add $ip_addr/24 brd + dev br0
+sudo ip tuntap add dev tap0 mode tap
+sudo ip link set dev tap0 up
+sudo ip link set tap0 master br0

@@ -13,8 +13,8 @@ sudo qemu-system-x86_64 \
 		-nographic -serial mon:stdio \
 		-drive file=./kernel-image/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
-		-net nic,model=e1000 \
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
+		-device e1000,netdev=network0,mac=52:55:00:d1:55:01 \
 		-monitor unix:qemu-monitor-migration,server,nowait
 ```
 
@@ -29,12 +29,13 @@ sudo qemu-system-x86_64 \
 		-nographic -serial mon:stdio \
 		-drive file=./kernel-image/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
-		-net nic,model=e1000 \
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
+		-device e1000,netdev=network0,mac=52:55:00:d1:55:01 \
 		-incoming tcp:0:4444
 ```
 
 The `-incoming` option specifies the listening TCP port. I didn't explore other transport protocols. 
 
-Now both the source and dest machines are ready for the migration. We can issue the migration by `migrate -d tcp:10.10.1.2:4444` in the monitor. Check this [blog](https://wiki.gentoo.org/wiki/QEMU/Options) for more options.
+Now both the source and dest machines are ready for the migration. We can issue the migration by `migrate -d tcp:10.10.1.2:4444` in the monitor. Check this [blog](https://wiki.gentoo.org/wiki/QEMU/Options) for more options. 
 
+Because we need to profile the effect of live migration, we should try to keep the network connections alive. This requires the VM to expose its internal IP address as public, instead of using the host IP address. One way to do this is [Linux TAP/Bridges](https://blog.stefan-koch.name/2020/10/25/qemu-public-ip-vm-with-tap). After booting the kernel, we should assign an IP address manually by: `ip addr add 10.10.1.100/24 dev eth0`. Then you can test the connectivity by `iperf` tool.
