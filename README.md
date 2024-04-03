@@ -13,8 +13,8 @@ sudo qemu-system-x86_64 \
 		-nographic -serial mon:stdio \
 		-drive file=./kernel-image/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
-		-device e1000,netdev=network0,mac=52:55:00:d1:55:01 \
+		-netdev tap,id=eth0,ifname=tap0,script=no,downscript=no \
+		-device virtio-net,netdev=eth0,mac=52:55:00:d1:55:01 \
 		-monitor unix:qemu-monitor-migration,server,nowait
 ```
 
@@ -29,8 +29,8 @@ sudo qemu-system-x86_64 \
 		-nographic -serial mon:stdio \
 		-drive file=./kernel-image/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
-		-device e1000,netdev=network0,mac=52:55:00:d1:55:01 \
+		-netdev tap,id=eth0,ifname=tap0,script=no,downscript=no \
+		-device virtio-net,netdev=eth0,mac=52:55:00:d1:55:01 \
 		-incoming tcp:0:4444
 ```
 
