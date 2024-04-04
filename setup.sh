@@ -1,7 +1,8 @@
 sudo apt update
 
 # qemu dependency.
-sudo apt-get install linux-generic libelf-dev socat -y
+sudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
+pip install redis
 sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.
