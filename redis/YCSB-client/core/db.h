@@ -52,8 +52,7 @@ class DB {
   ///
   virtual std::tuple<uint32_t, uint64_t> Read(const std::string &table, const std::vector<std::string> &keys,
                    const std::vector<std::string> *fields,
-                   std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline,
-                   bool &migration_start, bool &migration_finish) = 0;
+                   std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline) = 0;
   ///
   /// Performs a range scan for a set of records in the database.
   /// Field/value pairs from the result are stored in a vector.
@@ -80,8 +79,7 @@ class DB {
   /// @return Zero on success, a non-zero error code on error.
   ///
   virtual std::tuple<uint32_t, uint64_t> Update(const std::string &table, const std::vector<std::string> &key,
-                     std::vector<std::vector<Field>> &values, uint32_t thread_id, int pipeline,
-                     bool &migration_start, bool &migration_finish) = 0;
+                     std::vector<std::vector<Field>> &values, uint32_t thread_id, int pipeline) = 0;
   ///
   /// Inserts a record into the database.
   /// Field/value pairs in the specified vector are written into the record.

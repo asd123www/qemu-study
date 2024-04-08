@@ -23,11 +23,11 @@ bool DBFactory::RegisterDB(std::string db_name, DBCreator db_creator) {
   return true;
 }
 
+// asd123www: call redis_db here.
 DB *DBFactory::CreateDB(utils::Properties *props, Measurements *measurements) {
   std::string db_name = props->GetProperty("dbname", "basic");
   DB *db = nullptr;
   std::map<std::string, DBCreator> &registry = Registry();
-  std::cout<<"db_name: "<< db_name<<std::endl;
   if (registry.find(db_name) != registry.end()) {
     DB *new_db = (*registry[db_name])();
     new_db->SetProps(props);

@@ -4,7 +4,6 @@
 #include <iostream>
 namespace ycsbc {
     void RedisDB::Init(uint32_t thread_id) {
-puts("I'm in the fucking RedisDB.");
         const utils::Properties& props =  *props_;
         std::string redis_address = props.GetProperty("redis.address");
         std::cout << "Redis Address: " << redis_address << std::endl;
@@ -18,8 +17,7 @@ puts("I'm in the fucking RedisDB.");
 
     std::tuple<uint32_t, uint64_t> RedisDB::Read(const std::string &table, const std::vector<std::string> &keys,
                             const std::vector<std::string> *fields,
-                            std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline,
-                            bool & migration_start, bool & migration_finish){
+                            std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline){
         for (int i = 0; i < pipeline; i++) {
             std::string redis_key = table + "_" + keys[i];
             // auto res = redis->get(redis_key);
@@ -46,8 +44,7 @@ puts("I'm in the fucking RedisDB.");
         return DB::Status::kNotImplemented;
     }
     std::tuple<uint32_t, uint64_t> RedisDB::Update(const std::string &table, const std::vector<std::string> &keys,
-                  std::vector<std::vector<Field>> &values, uint32_t thread_id, int pipeline,
-                  bool & migration_start, bool & migration_finish){
+                  std::vector<std::vector<Field>> &values, uint32_t thread_id, int pipeline){
         for (int i = 0; i < pipeline; i++) {
             std::string redis_key = table + "_" + keys[i];
             std::string redis_val = "";

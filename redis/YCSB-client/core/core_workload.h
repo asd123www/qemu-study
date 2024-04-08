@@ -164,7 +164,7 @@ class CoreWorkload {
   virtual void Init(const utils::Properties &p);
 
   virtual bool DoInsert(DB &db, uint32_t thread_id, int pipeline);
-  virtual std::tuple<uint32_t, uint64_t> DoTransaction(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish);
+  virtual std::tuple<uint32_t, uint64_t> DoTransaction(DB &db, uint32_t thread_id, int pipeline);
 
   bool read_all_fields() const { return read_all_fields_; }
   bool write_all_fields() const { return write_all_fields_; }
@@ -194,10 +194,10 @@ class CoreWorkload {
   uint64_t NextTransactionKeyNum();
   std::string NextFieldName();
 
-  std::tuple<uint32_t, uint64_t> TransactionRead(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish);
-  std::tuple<uint32_t, uint64_t> TransactionReadModifyWrite(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish);
+  std::tuple<uint32_t, uint64_t> TransactionRead(DB &db, uint32_t thread_id, int pipeline);
+  std::tuple<uint32_t, uint64_t> TransactionReadModifyWrite(DB &db, uint32_t thread_id, int pipeline);
   int TransactionScan(DB &db, uint32_t thread_id);
-  std::tuple<uint32_t, uint64_t> TransactionUpdate(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish);
+  std::tuple<uint32_t, uint64_t> TransactionUpdate(DB &db, uint32_t thread_id, int pipeline);
   int TransactionInsert(DB &db, uint32_t thread_id);
 
   const int GEN_KEY_SIZE = 4;
@@ -242,15 +242,15 @@ inline bool CoreWorkload::DoInsert(DB &db, uint32_t thread_id, int pipeline) {
   return db.Insert(table_name_, key, fields, thread_id, true) == DB::kOK;
 }
 
-inline std::tuple<uint32_t, uint64_t> CoreWorkload::DoTransaction(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish) {
+inline std::tuple<uint32_t, uint64_t> CoreWorkload::DoTransaction(DB &db, uint32_t thread_id, int pipeline) {
   int status = -1;
   uint64_t extra_bandwidth = 0;
   switch (op_chooser_.Next()) {
     case READ:
-      std::tie(status, extra_bandwidth) = TransactionRead(db, thread_id, pipeline, migration_start , migration_finish);
+      std::tie(status, extra_bandwidth) = TransactionRead(db, thread_id, pipeline);
       break;
     case UPDATE:
-      std::tie(status, extra_bandwidth) = TransactionUpdate(db, thread_id, pipeline, migration_start, migration_finish);
+      std::tie(status, extra_bandwidth) = TransactionUpdate(db, thread_id, pipeline);
       break;
     case INSERT:
       status = TransactionInsert(db, thread_id);
@@ -259,7 +259,7 @@ inline std::tuple<uint32_t, uint64_t> CoreWorkload::DoTransaction(DB &db, uint32
       status = TransactionScan(db, thread_id);
       break;
     case READMODIFYWRITE:
-      std::tie(status, extra_bandwidth) = TransactionReadModifyWrite(db, thread_id, pipeline, migration_start, migration_finish);
+      std::tie(status, extra_bandwidth) = TransactionReadModifyWrite(db, thread_id, pipeline);
       break;
     default:
       throw utils::Exception("Operation request is not recognized!");
@@ -268,7 +268,7 @@ inline std::tuple<uint32_t, uint64_t> CoreWorkload::DoTransaction(DB &db, uint32
   return std::make_tuple(status * pipeline, extra_bandwidth);
 }
 
-inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionRead(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish) {
+inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionRead(DB &db, uint32_t thread_id, int pipeline) {
   std::vector<std::string> keys;
   for (int i = 0; i < pipeline; i++) {
     uint64_t key_num = NextTransactionKeyNum();
@@ -277,10 +277,10 @@ inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionRead(DB &db, uint
   }
 
   std::vector<std::vector<DB::Field>> result;
-  return db.Read(table_name_, keys, NULL, result, thread_id, pipeline, migration_start, migration_finish);
+  return db.Read(table_name_, keys, NULL, result, thread_id, pipeline);
 }
 
-inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionReadModifyWrite(DB &db, uint32_t thread_id, int pipeline, bool &migration_start, bool & migration_finish) {
+inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionReadModifyWrite(DB &db, uint32_t thread_id, int pipeline) {
     std::vector<std::string> keys;
     std::vector<std::vector<DB::Field>> values;
     for (int i = 0; i < pipeline; i++) {
@@ -298,9 +298,9 @@ inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionReadModifyWrite(D
     }
     
     std::vector<std::vector<DB::Field>> result;
-    db.Read(table_name_, keys, NULL, result, thread_id, pipeline, migration_start, migration_finish);
+    db.Read(table_name_, keys, NULL, result, thread_id, pipeline);
     
-    return db.Update(table_name_, keys, values, thread_id, pipeline, migration_start, migration_finish);
+    return db.Update(table_name_, keys, values, thread_id, pipeline);
 }
 
 inline int CoreWorkload::TransactionScan(DB &db, uint32_t thread_id) {
@@ -317,7 +317,7 @@ inline int CoreWorkload::TransactionScan(DB &db, uint32_t thread_id) {
   }
 }
 
-inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionUpdate(DB &db, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish) {
+inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionUpdate(DB &db, uint32_t thread_id, int pipeline) {
   std::vector<std::string> keys;
   std::vector<std::vector<DB::Field>> values;
   for (int i = 0; i < pipeline; i++) {
@@ -332,7 +332,7 @@ inline std::tuple<uint32_t, uint64_t> CoreWorkload::TransactionUpdate(DB &db, ui
     }
     values.push_back(value);
   }
-  return db.Update(table_name_, keys, values, thread_id, pipeline, migration_start, migration_finish);
+  return db.Update(table_name_, keys, values, thread_id, pipeline);
 }
 
 inline int CoreWorkload::TransactionInsert(DB &db, uint32_t thread_id) {

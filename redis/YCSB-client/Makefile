@@ -122,5 +122,6 @@ endif
 clean:
 	find . -name "*.[od]" -delete
 	$(RM) $(EXEC)
+	$(RM) ycsb-redis
 
 .PHONY: clean

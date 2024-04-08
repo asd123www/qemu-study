@@ -21,7 +21,7 @@ void BasicDB::Init(uint32_t thread_id) {
 }
 
 std::tuple<uint32_t, uint64_t> BasicDB::Read(const std::string &table, const std::vector<std::string> &keys,
-                         const std::vector<std::string> *fields, std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish) {
+                         const std::vector<std::string> *fields, std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline) {
   std::lock_guard<std::mutex> lock(mutex_);
   /*
   cout << "READ " << table << ' ' << key;
@@ -56,7 +56,7 @@ DB::Status BasicDB::Scan(const std::string &table, const std::string &key, int l
 }
 
 std::tuple<uint32_t, uint64_t> BasicDB::Update(const std::string &table, const std::vector<std::string> &keys,
-                           std::vector<std::vector<Field>> &values, uint32_t thread_id, int pipeline, bool & migration_start, bool & migration_finish) {
+                           std::vector<std::vector<Field>> &values, uint32_t thread_id, int pipeline) {
   std::lock_guard<std::mutex> lock(mutex_);
   /*
   cout << "UPDATE " << table << ' ' << key << " [ ";

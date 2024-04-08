@@ -31,12 +31,11 @@ class DBWrapper : public DB {
     db_->Cleanup();
   }
   std::tuple<uint32_t, uint64_t> Read(const std::string &table, const std::vector<std::string> &keys,
-              const std::vector<std::string> *fields, std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline,
-              bool & migration_start, bool & migration_finish) {
+              const std::vector<std::string> *fields, std::vector<std::vector<Field>> &results, uint32_t thread_id, int pipeline) {
     timer_.Start();
     uint32_t s;
     uint64_t extra_bandwidth;
-    std::tie(s, extra_bandwidth) = db_->Read(table, keys, fields, results, thread_id, pipeline, migration_start, migration_finish);
+    std::tie(s, extra_bandwidth) = db_->Read(table, keys, fields, results, thread_id, pipeline);
     uint64_t elapsed = timer_.End();
     measurements_->Report(READ, elapsed, thread_id, s, extra_bandwidth, pipeline * 68);
     return std::make_tuple(s, extra_bandwidth);
@@ -50,12 +49,11 @@ class DBWrapper : public DB {
     return s;
   }
   std::tuple<uint32_t, uint64_t> Update(const std::string &table, const std::vector<std::string> &keys, std::vector<std::vector<Field>> &values, 
-                  uint32_t thread_id, int pipeline,
-                  bool & migration_start, bool & migration_finish) {
+                  uint32_t thread_id, int pipeline) {
     timer_.Start();
     uint32_t s;
     uint64_t extra_bandwidth;
-    std::tie(s, extra_bandwidth) = db_->Update(table, keys, values, thread_id, pipeline, migration_start, migration_finish);
+    std::tie(s, extra_bandwidth) = db_->Update(table, keys, values, thread_id, pipeline);
     uint64_t elapsed = timer_.End();
     measurements_->Report(UPDATE, elapsed, thread_id, s, extra_bandwidth, pipeline * 68);
     return std::make_tuple(s, extra_bandwidth);

@@ -18,7 +18,7 @@
 namespace ycsbc {
 
 inline long long ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const long long num_ops, bool is_loading,
-                        bool init_db, bool cleanup_db, CountDownLatch *latch, uint32_t thread_id, bool & migration_start, bool & migration_finish) {
+                        bool init_db, bool cleanup_db, CountDownLatch *latch, uint32_t thread_id) {
   if (init_db) {
     db->Init(thread_id);
   }
@@ -32,31 +32,12 @@ inline long long ClientThread(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const long
   }
 
   for (long long i = 0; i < num_ops / PIPELINE; ++i) {
-    /*
-    bool bypass = false;
-    if (migration_start == true && migration_finish == false) { // global bool variables to all client threads
-      if (thread_id > THREAD_NUM_THRE)  // control client thread num during migration
-        bypass = true;
-    }
-
-    while (bypass) {
-      if (migration_start == true && migration_finish == false) { // global bool variables to all client threads
-        if (thread_id > THREAD_NUM_THRE)  // control client thread num during migration
-          bypass = true;
-        else 
-          bypass = false;
-      }
-      else 
-        bypass = false;
-    }
-    */
-
     if (is_loading) {
       oks += wl->DoInsert(*db, thread_id, PIPELINE);
     } else {
         uint32_t success = 0;
         uint64_t extra_bandwidth = 0;
-        std::tie(success, extra_bandwidth) = wl->DoTransaction(*db, thread_id, PIPELINE, migration_start, migration_finish);
+        std::tie(success, extra_bandwidth) = wl->DoTransaction(*db, thread_id, PIPELINE);
         oks += success;
     }
   }

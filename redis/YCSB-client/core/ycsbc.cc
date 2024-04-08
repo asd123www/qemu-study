@@ -5,6 +5,7 @@
 //  Copyright (c) 2020 Youngjae Lee <ls4154.lee@gmail.com>.
 //  Copyright (c) 2014 Jinglei Ren <jinglei@ren.systems>.
 //
+// asd123www: the main function. 
 
 #include <cstring>
 #include <ctime>
@@ -51,8 +52,6 @@ void StatusThread(ycsbc::Measurements *measurements, CountDownLatch *latch, int 
 }
 
 int main(const int argc, const char *argv[]) {
-  bool migration_start = false, migration_finish = false;
-
   ycsbc::utils::Properties props;
   ParseCommandLine(argc, argv, props);
 
@@ -63,7 +62,6 @@ int main(const int argc, const char *argv[]) {
     exit(1);
   }
 
-  printf("%d %d\n", do_load, do_transaction);
   const int num_threads = stoi(props.GetProperty("threadcount", "1"));
 
   ycsbc::Measurements measurements; // shared by multiple threads with mutex or atomic var
@@ -78,7 +76,6 @@ int main(const int argc, const char *argv[]) {
     }
     dbs.push_back(db);
   }
-  puts("CheckPoint1");
 
   ycsbc::CoreWorkload wl;
   wl.Init(props);
@@ -86,15 +83,14 @@ int main(const int argc, const char *argv[]) {
   const bool show_status = (props.GetProperty("status", "false") == "true");
   const int status_interval = std::stoi(props.GetProperty("status.interval", "1"));
 
-  puts("Hello world!");
-  printf("%d %d\n", show_status, status_interval);
   // load phase
   if (do_load) {
-    puts("I'm working.");
     const long long total_ops = stoll(props[ycsbc::CoreWorkload::RECORD_COUNT_PROPERTY]);
 
     CountDownLatch latch(num_threads);
     ycsbc::utils::Timer<double> timer;
+
+    printf("%lld\n", total_ops);
 
     timer.Start();
     std::future<void> status_future;
@@ -111,7 +107,7 @@ int main(const int argc, const char *argv[]) {
         thread_ops++;
       }
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, true, true, !do_transaction, &latch, i, std::ref(migration_start), std::ref(migration_finish)));
+                                             thread_ops, true, true, !do_transaction, &latch, i));
     }
     assert((long long)client_threads.size() == num_threads);
 
@@ -138,7 +134,7 @@ int main(const int argc, const char *argv[]) {
   if (do_transaction) {
     const long long total_ops = stoll(props[ycsbc::CoreWorkload::OPERATION_COUNT_PROPERTY]);
 
-    printf("total ops: %lld\n", total_ops );
+    printf("total ops: %lld\n", total_ops);
     CountDownLatch latch(num_threads);
     ycsbc::utils::Timer<double> timer;
 
@@ -155,7 +151,7 @@ int main(const int argc, const char *argv[]) {
         thread_ops++;
       }
       client_threads.emplace_back(std::async(std::launch::async, ycsbc::ClientThread, dbs[i], &wl,
-                                             thread_ops, false, !do_load, true,  &latch, i, std::ref(migration_start), std::ref(migration_finish)));
+                                             thread_ops, false, !do_load, true,  &latch, i));
     }
     assert((long long)client_threads.size() == num_threads);
 
