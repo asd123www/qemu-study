@@ -2,6 +2,10 @@
 # Copyright 2016 syzkaller project authors. All rights reserved.
 # Use of this source code is governed by Apache 2 LICENSE that can be found in the LICENSE file.
 
+# clear the old image.
+rm -f b*
+sudo rm -rf chroot
+
 # create-image.sh creates a minimal Debian Linux image suitable for syzkaller.
 
 set -eux
