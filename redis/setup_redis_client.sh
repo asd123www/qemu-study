@@ -1,4 +1,5 @@
-sudo apt install cmake
+sudo apt update
+sudo apt install cmake -y
 
 # install hiredis
 git clone https://github.com/redis/hiredis.git
@@ -16,3 +17,6 @@ cmake ..
 make
 make install
 cd ..
+
+# load libredis++.so.1
+sudo ldconfig
