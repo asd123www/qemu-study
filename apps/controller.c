@@ -1,0 +1,230 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+#include <assert.h>
+#include <netdb.h>
+#include <time.h>
+#include <sys/types.h>
+
+
+#define MAX_LINE_LENGTH 255
+
+void get_config_value(const char *key, char *value) {
+    FILE* file = fopen("../config.txt", "r");
+    if (file == NULL) {
+        puts("The file doesn't exist."); fflush(stdout);
+        exit(-1);
+    }
+    char line[MAX_LINE_LENGTH];
+
+    while (fgets(line, MAX_LINE_LENGTH, file)) {
+        if (strncmp(line, key, strlen(key)) == 0) {
+            strcpy(value, strchr(line, '=') + 1);
+            // Remove newline character
+            value[strcspn(value, "\n")] = 0;
+
+            break;
+        }
+    }
+    fclose(file);
+}
+
+void get_local_addr(char *iface, char *local_ip) {
+    int fd;
+    struct ifreq ifr;
+
+    // Create a socket so we can use ioctl on it to get the interface info
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Type of address to retrieve - IPv4 IP address
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    // Copy the interface name in the ifreq structure
+    strncpy(ifr.ifr_name, iface, sizeof(iface));
+
+    // Get the IP address
+    if (ioctl(fd, SIOCGIFADDR, &ifr) < 0) {
+        perror("asd123www: ioctl");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy the IP address into the ip buffer, converting it from binary to text form
+    inet_ntop(AF_INET, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, local_ip, 16);
+}
+
+int listen_wrapper(char *addr, char *port) {
+    int sockfd, connfd, len; 
+    struct sockaddr_in servaddr, cli; 
+   
+    // socket create and verification 
+    sockfd = socket(AF_INET, SOCK_STREAM, 0); 
+    if (sockfd == -1) { 
+        printf("socket creation failed...\n"); 
+        exit(0);
+    }
+    bzero(&servaddr, sizeof(servaddr)); 
+   
+    // assign IP, PORT 
+    servaddr.sin_family = AF_INET; 
+    servaddr.sin_addr.s_addr = inet_addr(addr); 
+    servaddr.sin_port = htons(12345); 
+   
+    // Binding newly created socket to given IP and verification 
+    if ((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) { 
+        printf("socket bind failed...\n"); 
+        exit(0); 
+    }
+   
+    // Now server is ready to listen and verification 
+    if ((listen(sockfd, 15)) != 0) { 
+        printf("Listen failed...\n"); 
+        exit(0); 
+    }
+    len = sizeof(cli);
+   
+    // Accept the data packet from client and verification 
+    connfd = accept(sockfd, (struct sockaddr *)&cli, &len); 
+    if (connfd < 0) { 
+        printf("server accept failed...\n"); 
+        exit(0); 
+    }
+
+    return connfd;
+}
+
+int connect_wrapper(char *addr, char *port) {
+    int sockfd;
+    struct sockaddr_in server_addr;
+
+    // Create a socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(0);
+    }
+
+    // Specify the server address
+    bzero(&server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET; // Address family
+    server_addr.sin_port = htons(12345); // Port number, converted to network byte order
+    server_addr.sin_addr.s_addr = inet_addr(addr); // Server IP address
+
+    // Connect the socket to the server
+    int ret = connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if (ret < 0) {
+        printf("connect failed!\n");
+        exit(0);
+    }
+
+    return sockfd;
+}
+
+/* asd123www: start & end migration logic.
+ * -------------------------------------------
+ * For `src`: 
+ *     Listen on the controller port and build connection with `backup`.
+ *     Waiting for the `start migration` command from `backup`.
+ *     Upon receiving, issue `migrate` command in VM monitor.
+ *     WARNING: we don't check the existence of the VM.
+ * -------------------------------------------
+ * For `dst`:
+ * 
+ * -------------------------------------------
+ * For `backup`:
+ * 
+ * -------------------------------------------
+ */
+
+#define IP_LEN 16
+#define PORT_LEN 6
+#define DATA_LEN 1024
+
+char iface[IP_LEN], local_ip[IP_LEN];
+char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
+char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
+char buff[DATA_LEN];
+
+char startString[] = "start migration";
+char endString[] =   "ended migration";
+
+void src_main() {
+    printf("Hello form the source!\n");
+
+    // build connection with `backup`.
+    int connfd = listen_wrapper(local_ip, src_control_port);
+
+    while (1) {
+        bzero(buff, DATA_LEN); 
+        uint32_t read_len = read(connfd, buff, sizeof(buff)); 
+        if (read_len != strlen(startString)) {
+            puts("asd123www: start migration is wrong."); fflush(stdout);
+            exit(-1);
+        }
+
+        assert(strcmp(buff, startString) == 0);
+
+        // `sudo bash start_migration.sh`
+        uint32_t write_len = write(connfd, startString, sizeof(startString));
+
+        break;
+    }
+}
+
+void dst_main() {
+    printf("Hello form the dest!\n");
+    int connfd = listen_wrapper(local_ip, dst_control_port);
+
+}
+
+void backup_main() {
+    printf("Hello form the backup!\n");
+    int srcfd = connect_wrapper(src_ip, src_control_port);
+    int dstfd = connect_wrapper(dst_ip, dst_control_port);
+
+
+
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    uint32_t write_len = write(srcfd, startString, sizeof(startString));
+    uint32_t read_len = read(srcfd, buff, sizeof(buff));
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    printf("%s\n", buff);
+    printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+}
+
+int main() {
+    // read the config file.
+    get_config_value("NIC_NAME", iface);
+    get_config_value("SRC_IP", src_ip);
+    get_config_value("DST_IP", dst_ip);
+    get_config_value("BACKUP_IP", backup_ip);
+    get_config_value("VM_IP", vm_ip);
+    get_config_value("MIGRATION_PORT", migration_port);
+
+    get_local_addr(iface, local_ip);
+
+    if (strcmp(local_ip, src_ip) == 0) {
+        src_main();
+
+    } else if (strcmp(local_ip, dst_ip) == 0) {
+        dst_main();
+
+    } else {
+        assert(strcmp(local_ip, backup_ip) == 0);
+        backup_main();
+
+    }
+
+    return 0;
+}
