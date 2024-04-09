@@ -64,40 +64,40 @@ void get_local_addr(char *iface, char *local_ip) {
 }
 
 int listen_wrapper(char *addr, char *port) {
-    int sockfd, connfd, len; 
-    struct sockaddr_in servaddr, cli; 
+    int sockfd, connfd, len;
+    struct sockaddr_in servaddr, cli;
    
-    // socket create and verification 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    if (sockfd == -1) { 
-        printf("socket creation failed...\n"); 
+    // socket create and verification
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
         exit(0);
     }
-    bzero(&servaddr, sizeof(servaddr)); 
+    bzero(&servaddr, sizeof(servaddr));
    
-    // assign IP, PORT 
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = inet_addr(addr); 
-    servaddr.sin_port = htons(12345); 
+    // assign IP, PORT
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr(addr);
+    servaddr.sin_port = htons(atoi(port));
    
-    // Binding newly created socket to given IP and verification 
-    if ((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) { 
-        printf("socket bind failed...\n"); 
-        exit(0); 
+    // Binding newly created socket to given IP and verification
+    if ((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) {
+        printf("socket bind failed...\n");
+        exit(0);
     }
    
-    // Now server is ready to listen and verification 
-    if ((listen(sockfd, 15)) != 0) { 
-        printf("Listen failed...\n"); 
-        exit(0); 
+    // Now server is ready to listen and verification
+    if ((listen(sockfd, 15)) != 0) {
+        printf("Listen failed...\n");
+        exit(0);
     }
     len = sizeof(cli);
    
-    // Accept the data packet from client and verification 
-    connfd = accept(sockfd, (struct sockaddr *)&cli, &len); 
-    if (connfd < 0) { 
-        printf("server accept failed...\n"); 
-        exit(0); 
+    // Accept the data packet from client and verification.
+    connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
+    if (connfd < 0) {
+        printf("server accept failed...\n");
+        exit(0);
     }
 
     return connfd;
@@ -117,7 +117,7 @@ int connect_wrapper(char *addr, char *port) {
     // Specify the server address
     bzero(&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET; // Address family
-    server_addr.sin_port = htons(12345); // Port number, converted to network byte order
+    server_addr.sin_port = htons(atoi(port)); // Port number, converted to network byte order
     server_addr.sin_addr.s_addr = inet_addr(addr); // Server IP address
 
     // Connect the socket to the server
@@ -139,7 +139,7 @@ int connect_wrapper(char *addr, char *port) {
  *     WARNING: we don't check the existence of the VM.
  * -------------------------------------------
  * For `dst`:
- * 
+ *     
  * -------------------------------------------
  * For `backup`:
  * 
@@ -155,8 +155,8 @@ char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
 char buff[DATA_LEN];
 
-char startString[] = "start migration";
-char endString[] =   "ended migration";
+char startString[15] = "start migration";
+char endString[15] =   "ended migration";
 
 void src_main() {
     printf("Hello form the source!\n");
@@ -164,9 +164,10 @@ void src_main() {
     // build connection with `backup`.
     int connfd = listen_wrapper(local_ip, src_control_port);
 
+    bzero(buff, DATA_LEN);
     while (1) {
-        bzero(buff, DATA_LEN); 
-        uint32_t read_len = read(connfd, buff, sizeof(buff)); 
+        uint32_t read_len = read(connfd, buff, sizeof(buff));
+        if (!read_len) continue;
         if (read_len != strlen(startString)) {
             puts("asd123www: start migration is wrong."); fflush(stdout);
             exit(-1);
@@ -193,7 +194,6 @@ void backup_main() {
     int dstfd = connect_wrapper(dst_ip, dst_control_port);
 
 
-
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
     uint32_t write_len = write(srcfd, startString, sizeof(startString));
@@ -211,6 +211,9 @@ int main() {
     get_config_value("BACKUP_IP", backup_ip);
     get_config_value("VM_IP", vm_ip);
     get_config_value("MIGRATION_PORT", migration_port);
+    get_config_value("SRC_CONTROL_PORT", src_control_port);
+    get_config_value("DST_CONTROL_PORT", dst_control_port);
+    get_config_value("BACKUP_CONTROL_PORT", backup_control_port);
 
     get_local_addr(iface, local_ip);
 
