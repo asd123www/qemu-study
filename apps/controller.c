@@ -158,7 +158,7 @@ int connect_wrapper(char *addr, char *port) {
 #define PORT_LEN 6
 #define DATA_LEN 1024
 
-int connfd;
+int connfd, srcfd, dstfd;
 
 char iface[IP_LEN], local_ip[IP_LEN];
 char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
@@ -198,7 +198,7 @@ void src_main() {
 
 void signal_handler_dst(int signal) {
     if (signal == SIGUSR1) {
-        printf("Received SIGUSR1 signal\n");
+        printf("dst: Received SIGUSR1 signal\n");
         uint32_t write_len = write(connfd, endString, sizeof(endString));
         assert(write_len == sizeof(endString));
     }
@@ -221,7 +221,7 @@ void dst_main() {
         exit(-1);
     }
 
-    printf("Waiting for SIGUSR1 signal\n");
+    printf("dst: Waiting for SIGUSR1 signal\n");
 
     // keeps the program alive
     while(1) {
@@ -229,24 +229,40 @@ void dst_main() {
     }
 }
 
+
+void signal_handler_backup(int signal) {
+    if (signal == SIGUSR1) {
+        printf("backup: Received SIGUSR1 signal\n");
+        sleep(2);
+        uint32_t write_len = write(connfd, endString, sizeof(endString));
+        assert(write_len == sizeof(endString));
+        uint32_t read_len = read(dstfd, buff, sizeof(buff));
+        assert(read_len == sizeof(endString));
+
+        // clock_gettime(CLOCK_MONOTONIC, &end);
+        // printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+
+        close(srcfd);
+        close(dstfd);
+    }
+}
+
 void backup_main() {
     printf("Hello form the backup!\n");
-    int srcfd = connect_wrapper(src_ip, src_control_port);
-    int dstfd = connect_wrapper(dst_ip, dst_control_port);
+    srcfd = connect_wrapper(src_ip, src_control_port);
+    dstfd = connect_wrapper(dst_ip, dst_control_port);
 
-    // struct timespec start, end;
-    // clock_gettime(CLOCK_MONOTONIC, &start);
-    uint32_t write_len = write(srcfd, startString, sizeof(startString));
-    assert(write_len == sizeof(startString));
-    uint32_t read_len = read(dstfd, buff, sizeof(buff));
-    assert(read_len == sizeof(endString));
+    if (signal(SIGUSR1, signal_handler_backup) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
 
-    // clock_gettime(CLOCK_MONOTONIC, &end);
-    printf("%s\n", buff);
-    // printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+    printf("backup: Waiting for SIGUSR1 signal\n");
 
-    close(srcfd);
-    close(dstfd);
+    // keeps the program alive
+    while(1) {
+        sleep(1);
+    }
 }
 
 int main() {

@@ -11,6 +11,10 @@
 #include <iostream>
 #include <vector>
 #include <future>
+#include <unistd.h>
+#include <stdio.h>
+#include <signal.h>
+
 #include "core/utils.h"
 #include "core/timer.h"
 #include "core/client.h"
@@ -69,6 +73,19 @@ int main(const int argc, const char *argv[]) {
     sum += n.get();
   }
   cerr << "# Loading records:\t" << sum << endl;
+
+
+  // asd123www_impl: tell controller the start of the transaction.
+  pid_t controller_pid;
+  FILE *pid_file = fopen("./controller.pid", "r");
+  if (pid_file) {
+    fscanf(pid_file, "%d", &controller_pid);
+    fclose(pid_file);
+  }
+  if (kill(controller_pid, SIGUSR1) == -1) {
+    perror("Error sending signal");
+    exit(-1);
+  }
 
   // Peforms transactions
   actual_ops.clear();
