@@ -397,7 +397,10 @@ void migration_incoming_state_destroy(void)
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 
     // asd123www_impl.
-    printf("Hello controller: %d\n", mis->controller_pid);
+    if (kill(mis->controller_pid, SIGUSR1) == -1) {
+        perror("Error sending signal");
+        exit(-1);
+    }
 }
 
 static void migrate_generate_event(int new_state)

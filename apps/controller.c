@@ -11,6 +11,8 @@
 #include <netdb.h>
 #include <time.h>
 #include <sys/types.h>
+#include <signal.h>
+
 
 
 #define MAX_LINE_LENGTH 255
@@ -156,6 +158,8 @@ int connect_wrapper(char *addr, char *port) {
 #define PORT_LEN 6
 #define DATA_LEN 1024
 
+int connfd;
+
 char iface[IP_LEN], local_ip[IP_LEN];
 char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
@@ -168,7 +172,7 @@ void src_main() {
     printf("Hello form the source!\n");
 
     // build connection with `backup`.
-    int connfd = listen_wrapper(local_ip, src_control_port);
+    connfd = listen_wrapper(local_ip, src_control_port);
 
     bzero(buff, DATA_LEN);
     while (1) {
@@ -192,6 +196,14 @@ void src_main() {
     }
 }
 
+void signal_handler_dst(int signal) {
+    if (signal == SIGUSR1) {
+        printf("Received SIGUSR1 signal\n");
+        uint32_t write_len = write(connfd, endString, sizeof(endString));
+        assert(write_len == sizeof(endString));
+    }
+}
+
 void dst_main() {
     printf("Hello form the dest!\n");
 
@@ -201,26 +213,40 @@ void dst_main() {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
     }
+    
+    connfd = listen_wrapper(local_ip, dst_control_port);
 
-    int connfd = listen_wrapper(local_ip, dst_control_port);
+    if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
 
+    printf("Waiting for SIGUSR1 signal\n");
+
+    // keeps the program alive
+    while(1) {
+        sleep(1);
+    }
 }
 
 void backup_main() {
     printf("Hello form the backup!\n");
     int srcfd = connect_wrapper(src_ip, src_control_port);
-    // int dstfd = connect_wrapper(dst_ip, dst_control_port);
-
+    int dstfd = connect_wrapper(dst_ip, dst_control_port);
 
     // struct timespec start, end;
     // clock_gettime(CLOCK_MONOTONIC, &start);
     uint32_t write_len = write(srcfd, startString, sizeof(startString));
-    // uint32_t read_len = read(srcfd, buff, sizeof(buff));
+    assert(write_len == sizeof(startString));
+    uint32_t read_len = read(dstfd, buff, sizeof(buff));
+    assert(read_len == sizeof(buff));
+
     // clock_gettime(CLOCK_MONOTONIC, &end);
-    // printf("%s\n", buff);
+    printf("%s\n", buff);
     // printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
 
     close(srcfd);
+    close(dstfd);
 }
 
 int main() {
