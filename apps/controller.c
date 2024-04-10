@@ -239,7 +239,7 @@ void backup_main() {
     uint32_t write_len = write(srcfd, startString, sizeof(startString));
     assert(write_len == sizeof(startString));
     uint32_t read_len = read(dstfd, buff, sizeof(buff));
-    assert(read_len == sizeof(buff));
+    assert(read_len == sizeof(endString));
 
     // clock_gettime(CLOCK_MONOTONIC, &end);
     printf("%s\n", buff);
