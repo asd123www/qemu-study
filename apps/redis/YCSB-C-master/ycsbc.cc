@@ -76,15 +76,16 @@ int main(const int argc, const char *argv[]) {
 
 
   // asd123www_impl: tell controller the start of the transaction.
-  pid_t controller_pid;
-  FILE *pid_file = fopen("./controller.pid", "r");
+  FILE *pid_file = fopen("../../../controller.pid", "r");
+  printf("File state: %d\n", pid_file == NULL);
   if (pid_file) {
+    pid_t controller_pid;
     fscanf(pid_file, "%d", &controller_pid);
     fclose(pid_file);
-  }
-  if (kill(controller_pid, SIGUSR1) == -1) {
-    perror("Error sending signal");
-    exit(-1);
+    if (kill(controller_pid, SIGUSR1) == -1) {
+      perror("Error sending signal");
+      exit(-1);
+    }
   }
 
   // Peforms transactions

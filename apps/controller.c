@@ -234,16 +234,23 @@ void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
         sleep(2);
-        uint32_t write_len = write(connfd, endString, sizeof(endString));
-        assert(write_len == sizeof(endString));
+        uint32_t write_len = write(srcfd, startString, sizeof(startString));
+        assert(write_len == sizeof(startString));
+
+
+        bzero(buff, DATA_LEN);
         uint32_t read_len = read(dstfd, buff, sizeof(buff));
         assert(read_len == sizeof(endString));
+        assert(strcmp(endString, buff) == 0);
 
+        printf("backup: %s\n", buff);
         // clock_gettime(CLOCK_MONOTONIC, &end);
         // printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
 
         close(srcfd);
         close(dstfd);
+        
+        exit(-1);
     }
 }
 
@@ -251,6 +258,13 @@ void backup_main() {
     printf("Hello form the backup!\n");
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
+
+    // write pid to a file for signal.
+    FILE *pid_file = fopen("./controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
 
     if (signal(SIGUSR1, signal_handler_backup) == SIG_ERR) {
         printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
