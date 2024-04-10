@@ -234,18 +234,22 @@ void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
         sleep(2);
+
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        // issue migration command.
         uint32_t write_len = write(srcfd, startString, sizeof(startString));
         assert(write_len == sizeof(startString));
 
-
+        // wait for completion signal.
         bzero(buff, DATA_LEN);
         uint32_t read_len = read(dstfd, buff, sizeof(buff));
         assert(read_len == sizeof(endString));
         assert(strcmp(endString, buff) == 0);
 
-        printf("backup: %s\n", buff);
-        // clock_gettime(CLOCK_MONOTONIC, &end);
-        // printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
 
         close(srcfd);
         close(dstfd);
