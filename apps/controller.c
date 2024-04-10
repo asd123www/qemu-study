@@ -15,8 +15,14 @@
 
 #define MAX_LINE_LENGTH 255
 
+int execute_wrapper(char *command) {
+    char commandname[256];
+    snprintf(commandname, 256, "%s", command);
+    return system(commandname);
+}
+
 void get_config_value(const char *key, char *value) {
-    FILE* file = fopen("../config.txt", "r");
+    FILE* file = fopen("./config.txt", "r");
     if (file == NULL) {
         puts("The file doesn't exist."); fflush(stdout);
         exit(-1);
@@ -176,7 +182,11 @@ void src_main() {
         assert(strcmp(buff, startString) == 0);
 
         // `sudo bash start_migration.sh`
-        uint32_t write_len = write(connfd, startString, sizeof(startString));
+        int ret = execute_wrapper("sudo bash ./start_migration.sh");
+        if (ret) {
+            puts("asd123www: start migration is wrong."); fflush(stdout);
+            exit(-1);
+        }
 
         break;
     }
@@ -191,16 +201,18 @@ void dst_main() {
 void backup_main() {
     printf("Hello form the backup!\n");
     int srcfd = connect_wrapper(src_ip, src_control_port);
-    int dstfd = connect_wrapper(dst_ip, dst_control_port);
+    // int dstfd = connect_wrapper(dst_ip, dst_control_port);
 
 
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    // struct timespec start, end;
+    // clock_gettime(CLOCK_MONOTONIC, &start);
     uint32_t write_len = write(srcfd, startString, sizeof(startString));
-    uint32_t read_len = read(srcfd, buff, sizeof(buff));
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    printf("%s\n", buff);
-    printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+    // uint32_t read_len = read(srcfd, buff, sizeof(buff));
+    // clock_gettime(CLOCK_MONOTONIC, &end);
+    // printf("%s\n", buff);
+    // printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+
+    close(srcfd);
 }
 
 int main() {
