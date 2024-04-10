@@ -185,6 +185,7 @@ void socket_start_incoming_migration(SocketAddress *saddr,
     }
 
     mis->transport_data = listener;
+    // asd123www: register a cleanup function.
     mis->transport_cleanup = socket_incoming_migration_end;
 
     qio_net_listener_set_client_func_full(listener,

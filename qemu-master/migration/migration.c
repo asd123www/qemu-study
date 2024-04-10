@@ -352,6 +352,10 @@ void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
     }
 }
 
+/* asd123www: I assume this means the end of migration.
+ * I can't find another place...
+ * Maybe in the future I can understand what exactly happened...
+ */ 
 void migration_incoming_state_destroy(void)
 {
     struct MigrationIncomingState *mis = migration_incoming_get_current();
@@ -391,6 +395,8 @@ void migration_incoming_state_destroy(void)
     }
 
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
+
+    // asd123www_impl.
 }
 
 static void migrate_generate_event(int new_state)
@@ -1796,6 +1802,7 @@ void migrate_del_blocker(Error **reasonp)
     }
 }
 
+// asd123www: with `-incoming`, from `qmp_x_exit_preconfig`.
 void qmp_migrate_incoming(const char *uri, bool has_channels,
                           MigrationChannelList *channels, Error **errp)
 {

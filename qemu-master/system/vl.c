@@ -2695,6 +2695,7 @@ static bool qemu_machine_creation_done(Error **errp)
     return true;
 }
 
+// asd123www: exit the predefined qemu setting, the start point of waiting for incoming migrated VM.
 void qmp_x_exit_preconfig(Error **errp)
 {
     if (phase_check(PHASE_MACHINE_INITIALIZED)) {
