@@ -228,6 +228,10 @@ struct MigrationIncomingState {
      * is needed as this field is updated serially.
      */
     unsigned int switchover_ack_pending_num;
+
+
+    // asd123www_impl: the pid of the controller process.
+    pid_t controller_pid;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);

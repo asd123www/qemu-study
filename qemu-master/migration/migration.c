@@ -397,6 +397,7 @@ void migration_incoming_state_destroy(void)
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 
     // asd123www_impl.
+    printf("Hello controller: %d\n", mis->controller_pid);
 }
 
 static void migrate_generate_event(int new_state)
@@ -644,6 +645,13 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_SETUP);
+
+    // asd123www_impl: read pid here. 
+    FILE *pid_file = fopen("./controller.pid", "r");
+    if (pid_file) {
+        fscanf(pid_file, "%d", &mis->controller_pid);
+        fclose(pid_file);
+    }
 
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;

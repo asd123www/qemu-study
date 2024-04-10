@@ -194,6 +194,14 @@ void src_main() {
 
 void dst_main() {
     printf("Hello form the dest!\n");
+
+    // write pid to a file for signal.
+    FILE *pid_file = fopen("./controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
+
     int connfd = listen_wrapper(local_ip, dst_control_port);
 
 }
