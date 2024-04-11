@@ -47,23 +47,29 @@ int main(const int argc, const char *argv[]) {
   utils::Properties props;
   string file_name = ParseCommandLine(argc, argv, props);
 
-  ycsbc::DB *db = ycsbc::DBFactory::CreateDB(props);
-  if (!db) {
-    cout << "Unknown database name " << props["dbname"] << endl;
-    exit(0);
+  const int num_threads = stoi(props.GetProperty("threadcount", "1"));
+
+  std::vector<ycsbc::DB *> dbs;
+  for (int i = 0; i < num_threads; i++) {
+    ycsbc::DB *db = ycsbc::DBFactory::CreateDB(props);
+    if (!db) {
+      cout << "Unknown database name " << props["dbname"] << endl;
+      exit(0);
+    }
+    dbs.push_back(db);
   }
 
   ycsbc::CoreWorkload wl;
   wl.Init(props);
 
-  const int num_threads = stoi(props.GetProperty("threadcount", "1"));
+  printf("# of threads: %d\n", num_threads);
 
   // Loads data
   vector<future<int>> actual_ops;
   int total_ops = stoi(props[ycsbc::CoreWorkload::RECORD_COUNT_PROPERTY]);
   for (int i = 0; i < num_threads; ++i) {
     actual_ops.emplace_back(async(launch::async,
-        DelegateClient, db, &wl, total_ops / num_threads, true));
+        DelegateClient, dbs[i], &wl, total_ops / num_threads, true));
   }
   assert((int)actual_ops.size() == num_threads);
 
@@ -95,7 +101,7 @@ int main(const int argc, const char *argv[]) {
   timer.Start();
   for (int i = 0; i < num_threads; ++i) {
     actual_ops.emplace_back(async(launch::async,
-        DelegateClient, db, &wl, total_ops / num_threads, false));
+        DelegateClient, dbs[i], &wl, total_ops / num_threads, false));
   }
   assert((int)actual_ops.size() == num_threads);
 
@@ -196,4 +202,3 @@ void UsageMessage(const char *command) {
 inline bool StrStartWith(const char *str, const char *pre) {
   return strncmp(str, pre, strlen(pre)) == 0;
 }
-
