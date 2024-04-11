@@ -27,16 +27,26 @@ void UsageMessage(const char *command);
 bool StrStartWith(const char *str, const char *pre);
 string ParseCommandLine(int argc, const char *argv[], utils::Properties &props);
 
-int DelegateClient(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops,
-    bool is_loading) {
+
+std::vector<std::pair<long long, int>> lat[100];
+
+int DelegateClient(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bool is_loading, int idx) {
   db->Init();
   ycsbc::Client client(*db, *wl);
+
+  struct timespec start, end;
+  lat[idx].clear();
+
   int oks = 0;
   for (int i = 0; i < num_ops; ++i) {
     if (is_loading) {
       oks += client.DoInsert();
     } else {
+      clock_gettime(CLOCK_MONOTONIC, &start);
       oks += client.DoTransaction();
+      clock_gettime(CLOCK_MONOTONIC, &end);
+      lat[idx].push_back(std::make_pair(start.tv_sec * 1000000000LL + start.tv_nsec, 
+                                        end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec));
     }
   }
   db->Close();
@@ -69,7 +79,7 @@ int main(const int argc, const char *argv[]) {
   int total_ops = stoi(props[ycsbc::CoreWorkload::RECORD_COUNT_PROPERTY]);
   for (int i = 0; i < num_threads; ++i) {
     actual_ops.emplace_back(async(launch::async,
-        DelegateClient, dbs[i], &wl, total_ops / num_threads, true));
+        DelegateClient, dbs[i], &wl, total_ops / num_threads, true, i));
   }
   assert((int)actual_ops.size() == num_threads);
 
@@ -101,7 +111,7 @@ int main(const int argc, const char *argv[]) {
   timer.Start();
   for (int i = 0; i < num_threads; ++i) {
     actual_ops.emplace_back(async(launch::async,
-        DelegateClient, dbs[i], &wl, total_ops / num_threads, false));
+        DelegateClient, dbs[i], &wl, total_ops / num_threads, false, i));
   }
   assert((int)actual_ops.size() == num_threads);
 
@@ -110,6 +120,15 @@ int main(const int argc, const char *argv[]) {
     assert(n.valid());
     sum += n.get();
   }
+
+  for (int i = 0; i < num_threads; ++i) printf("size[%d]: %d\n", i, lat[i].size());
+
+  // write latency.
+  std::ofstream file("redis_result.txt");
+  for (int i = 1; i < num_threads; ++i) lat[0].insert(lat[0].end(), lat[i].begin(), lat[i].end());
+  std::sort(lat[0].begin(), lat[0].end());
+  for (uint32_t i = 0; i < lat[0].size(); ++i) file << lat[0][i].first << " " << lat[0][i].second << std::endl;
+
   double duration = timer.End();
   cerr << "# Transaction throughput (KTPS)" << endl;
   cerr << props["dbname"] << '\t' << file_name << '\t' << num_threads << '\t';

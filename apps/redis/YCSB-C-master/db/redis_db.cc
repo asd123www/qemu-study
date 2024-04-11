@@ -27,7 +27,7 @@ int RedisDB::Read(const string &table, const string &key,
     assert(i == argc - 1);
     redisReply *reply = (redisReply *)redisCommandArgv(
         redis_.context(), argc, argv, argvlen);
-    if (!reply) return DB::kOK;
+    if (!reply) return DB::kErrorNoData;
     assert(reply->type == REDIS_REPLY_ARRAY);
     assert(fields->size() == reply->elements);
     for (size_t i = 0; i < reply->elements; ++i) {
@@ -38,7 +38,7 @@ int RedisDB::Read(const string &table, const string &key,
   } else {
     redisReply *reply = (redisReply *)redisCommand(redis_.context(),
         "HGETALL %s", key.c_str());
-    if (!reply) return DB::kOK;
+    if (!reply) return DB::kErrorNoData;
     assert(reply->type == REDIS_REPLY_ARRAY);
     for (size_t i = 0; i < reply->elements / 2; ++i) {
       result.push_back(make_pair(

@@ -66,6 +66,7 @@ inline bool Client::DoTransaction() {
       throw utils::Exception("Operation request is not recognized!");
   }
   assert(status >= 0);
+  assert(status == DB::kOK);
   return (status == DB::kOK);
 }
 
