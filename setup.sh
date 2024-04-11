@@ -17,7 +17,7 @@ sudo apt-get install valgrind xfslibs-dev -y
 sudo apt-get install libnfs-dev libiscsi-dev -y
 
 
-# check kvm support
+# check kvm support.
 if [ $(egrep -c '(vmx|svm)' /proc/cpuinfo) -gt 0 ]; then
     echo "KVM is supported"
 else 
@@ -56,13 +56,13 @@ make olddefconfig
 make -j
 cd ..
 
-# Creating an image for the kernelPermalink
+# creating an image for the kernelPermalink.
 sudo apt-get install debootstrap
 cd kernel-image
 chmod +x create-image.sh
 sudo ./create-image.sh
 
-# Setup the network bridge for public VM IP address.
+# setup the network bridge for public VM IP address.
 sudo ip link add br0 type bridge
 sudo ip link set br0 up
 sudo ip link set ens1f1 master br0
@@ -72,3 +72,8 @@ sudo ip addr add $ip_addr/24 brd + dev br0
 sudo ip tuntap add dev tap0 mode tap
 sudo ip link set dev tap0 up
 sudo ip link set tap0 master br0
+
+# disable nic adaptive batching.
+sudo ethtool -C ens1f1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+sudo ethtool -C ens1f1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+sudo ethtool -C tap0 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
