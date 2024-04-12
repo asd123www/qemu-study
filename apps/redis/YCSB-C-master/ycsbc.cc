@@ -121,18 +121,18 @@ int main(const int argc, const char *argv[]) {
     sum += n.get();
   }
 
-  for (int i = 0; i < num_threads; ++i) printf("size[%d]: %d\n", i, lat[i].size());
+  double duration = timer.End();
+  cerr << "# Transaction throughput (KTPS)" << endl;
+  cerr << props["dbname"] << '\t' << file_name << '\t' << num_threads << '\t';
+  cerr << total_ops / duration / 1000 << endl;
+
+  for (int i = 0; i < num_threads; ++i) printf("size[%d]: %ld\n", i, lat[i].size());
 
   // write latency.
   std::ofstream file("redis_result.txt");
   for (int i = 1; i < num_threads; ++i) lat[0].insert(lat[0].end(), lat[i].begin(), lat[i].end());
   std::sort(lat[0].begin(), lat[0].end());
   for (uint32_t i = 0; i < lat[0].size(); ++i) file << lat[0][i].first << " " << lat[0][i].second << std::endl;
-
-  double duration = timer.End();
-  cerr << "# Transaction throughput (KTPS)" << endl;
-  cerr << props["dbname"] << '\t' << file_name << '\t' << num_threads << '\t';
-  cerr << total_ops / duration / 1000 << endl;
 }
 
 string ParseCommandLine(int argc, const char *argv[], utils::Properties &props) {
