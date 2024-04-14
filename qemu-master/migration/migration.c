@@ -398,8 +398,9 @@ void migration_incoming_state_destroy(void)
 
     // asd123www_impl.
     if (kill(mis->controller_pid, SIGUSR1) == -1) {
-        perror("Error sending signal");
-        exit(-1);
+        puts("dst: Failed to signal controller!");
+    } else {
+        puts("dst: Signal controller!");
     }
 }
 
@@ -654,6 +655,9 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
     if (pid_file) {
         fscanf(pid_file, "%d", &mis->controller_pid);
         fclose(pid_file);
+        printf("dst: The pid of controller is %d\n", mis->controller_pid);
+    } else {
+        puts("dst: No contoller!");
     }
 
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {

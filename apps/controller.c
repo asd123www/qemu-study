@@ -233,7 +233,7 @@ void dst_main() {
 void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
-        sleep(2);
+        sleep(3);
 
         struct timespec start, end;
         clock_gettime(CLOCK_MONOTONIC, &start);
