@@ -249,7 +249,10 @@ void signal_handler_backup(int signal) {
         assert(strcmp(endString, buff) == 0);
 
         clock_gettime(CLOCK_MONOTONIC, &end);
-        printf("%lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+
+        printf("start: %lld ns\n", start.tv_sec * 1000000000LL + start.tv_nsec);
+        printf("end: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec);
+        printf("durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
 
         close(srcfd);
         close(dstfd);
