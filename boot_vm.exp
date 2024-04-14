@@ -3,14 +3,11 @@
 #starts guest vm, run benchmarks, poweroff
 set timeout -1
 
-#Assign a variable to the log file
-set log     [lindex $argv 0]
-
 #Start the guest VM
 spawn sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-smp 2 \
-		-m 2G \
+		-m 16G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \

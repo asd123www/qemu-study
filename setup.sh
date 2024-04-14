@@ -10,11 +10,8 @@ sudo apt-get install git-email -y
 sudo apt-get install libaio-dev libbluetooth-dev libcapstone-dev libbrlapi-dev libbz2-dev -y
 sudo apt-get install libcap-ng-dev libcurl4-gnutls-dev libgtk-3-dev -y
 sudo apt-get install libibverbs-dev libjpeg8-dev libncurses5-dev libnuma-dev -y
-sudo apt-get install librbd-dev librdmacm-dev -y
-sudo apt-get install libsasl2-dev libsdl2-dev libseccomp-dev libsnappy-dev libssh-dev -y
-sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev -y
-sudo apt-get install valgrind xfslibs-dev -y
-sudo apt-get install libnfs-dev libiscsi-dev -y
+sudo apt-get install librbd-dev librdmacm-dev libsasl2-dev libsdl2-dev libseccomp-dev libsnappy-dev libssh-dev -y
+sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev valgrind xfslibs-dev libnfs-dev libiscsi-dev expect -y
 
 
 # check kvm support.
@@ -58,9 +55,9 @@ cd ..
 
 # creating an image for the kernelPermalink.
 sudo apt-get install debootstrap
-cd kernel-image
-chmod +x create-image.sh
-sudo ./create-image.sh
+# cd kernel-image
+# chmod +x create-image.sh
+# sudo ./create-image.sh
 
 # setup the network bridge for public VM IP address.
 sudo ip link add br0 type bridge

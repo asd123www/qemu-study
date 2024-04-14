@@ -173,6 +173,10 @@ ssh-keygen -f $RELEASE.id_rsa -t rsa -N ''
 sudo mkdir -p $DIR/root/.ssh/
 cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 
+# asd123www: Create the redis server configure file.
+sudo touch $DIR/root/redis-server.conf
+cat ../apps/redis/redis-server.conf | sudo tee $DIR/root/redis-server.conf
+
 # Add perf support
 if [ $PERF = "true" ]; then
     cp -r $KERNEL $DIR/tmp/
