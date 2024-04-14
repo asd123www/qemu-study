@@ -3250,7 +3250,11 @@ static MigIterateState migration_iteration_run(MigrationState *s)
         trace_migrate_pending_exact(pending_size, must_precopy, can_postcopy);
     }
 
-    if ((!pending_size || pending_size < s->threshold_size) && can_switchover) {
+    // asd123www_impl: break pre-copy after 20 iterations.
+    static iter = 0;
+    ++iter;
+    if (((!pending_size || pending_size < s->threshold_size) && can_switchover) ||
+        (iter == 20 && can_switchover)) {
         trace_migration_thread_low_pending(pending_size);
         migration_completion(s);
         return MIG_ITERATE_BREAK;
