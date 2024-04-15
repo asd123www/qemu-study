@@ -99,8 +99,8 @@ int main(const int argc, const char *argv[]) {
     fscanf(pid_file, "%d", &controller_pid);
     fclose(pid_file);
     if (kill(controller_pid, SIGUSR1) == -1) {
-      perror("Error sending signal");
-      exit(-1);
+      // perror("Error sending signal");
+      // exit(-1);
     }
   }
 

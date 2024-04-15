@@ -24,6 +24,9 @@ send "root\r"
 expect "root@syzkaller:"
 send "ip addr add 10.10.1.100/24 dev eth0\r"
 
+expect "root@syzkaller:"
+send "redis-server redis-server.conf\r"
+
 interact
 
 #Do whatever you want to do with in the guest VM. ( Run a process and write result to log )

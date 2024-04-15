@@ -396,11 +396,12 @@ void migration_incoming_state_destroy(void)
 
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 
+    
     // asd123www_impl.
     if (kill(mis->controller_pid, SIGUSR1) == -1) {
-        puts("dst: Failed to signal controller!");
-    } else {
-        puts("dst: Signal controller!");
+        // puts("dst: Failed to signal controller!");
+    // } else {
+        // puts("dst: Signal controller!");
     }
 }
 
@@ -3254,7 +3255,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     static iter = 0;
     ++iter;
     if (((!pending_size || pending_size < s->threshold_size) && can_switchover) ||
-        (iter == 20 && can_switchover)) {
+        (iter == 199999999 && can_switchover)) {
         trace_migration_thread_low_pending(pending_size);
         migration_completion(s);
         return MIG_ITERATE_BREAK;
