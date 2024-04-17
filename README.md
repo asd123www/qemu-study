@@ -8,7 +8,7 @@ The experiment is based on the `xl170` machine in Cloudlab with `kernel 5.4.0-16
 sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-smp 2 \
-		-m 2G \
+		-m 16G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
@@ -24,14 +24,15 @@ The `-monitor` option creates a Unix socket file for further monitoring the VM. 
 sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-smp 2 \
-		-m 2G \
+		-m 16G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
 		-netdev tap,id=eth0,ifname=tap0,script=no,downscript=no \
 		-device virtio-net,netdev=eth0,mac=52:55:00:d1:55:01 \
-		-incoming tcp:0:4444
+		-incoming tcp:0:4444 \
+		-monitor unix:qemu-monitor-migration,server,nowait
 ```
 
 The `-incoming` option specifies the listening TCP port. I didn't explore other transport protocols. 
