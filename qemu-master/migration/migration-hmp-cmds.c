@@ -52,6 +52,9 @@ static void migration_global_dump(Monitor *mon)
                    ms->clear_bitmap_shift);
 }
 
+/* If you type "info migrate" in monitor interface, it will trigger this function.
+ * Print migration information.
+ */
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 {
     MigrationInfo *info;
@@ -238,6 +241,9 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationInfo(info);
 }
 
+/* "info migrate_capabilities" in QEMU monitor.
+ * Check what features are enabled.
+ */
 void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
 {
     MigrationCapabilityStatusList *caps, *cap;
@@ -255,6 +261,9 @@ void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 }
 
+/* "info migrate_parameters" in QEMU monitor.
+ * I need to understand the meaning of those parameters.
+ */
 void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
 {
     MigrationParameters *params;
@@ -765,7 +774,9 @@ static void hmp_migrate_status_cb(void *opaque)
     qapi_free_MigrationInfo(info);
 }
 
-// Human Monitor Protocol, the entrance of migration from our command line.
+/* "migrate tcp:10.10.1.1" in QEMU monitor.
+ * entrance of migration logic.
+ */ 
 void hmp_migrate(Monitor *mon, const QDict *qdict)
 {
     bool detach = qdict_get_try_bool(qdict, "detach", false);
@@ -773,15 +784,6 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     bool inc = qdict_get_try_bool(qdict, "inc", false);
     bool resume = qdict_get_try_bool(qdict, "resume", false);
     const char *uri = qdict_get_str(qdict, "uri"); // the destination address.
-
-    // if (uri != NULL) {
-    //     puts("\nThe uri is not empty:");
-    //     int len = strlen(uri);
-    //     for(int i = 0; i < len; ++i) putchar(uri[i]);
-    //     puts("");
-    // } else {
-    //     puts("\nThe uri is empty.");
-    // }
 
     Error *err = NULL;
     g_autoptr(MigrationChannelList) caps = NULL;

@@ -40,3 +40,7 @@ The `-incoming` option specifies the listening TCP port. I didn't explore other 
 Now both the source and dest machines are ready for the migration. We can issue the migration by `migrate -d tcp:10.10.1.2:4444` in the monitor. Check this [blog](https://wiki.gentoo.org/wiki/QEMU/Options) for more options. You can check how many bytes are transferred by `sudo iftop -i ens1f1`.
 
 Because we need to profile the effect of live migration, we should try to keep the network connections alive. This requires the VM to expose its internal IP address as public, instead of using the host IP address. One way to do this is [Linux TAP/Bridges](https://blog.stefan-koch.name/2020/10/25/qemu-public-ip-vm-with-tap). After booting the kernel, we should assign an IP address manually by: `ip addr add 10.10.1.100/24 dev eth0`. Then you can test the connectivity by `iperf` tool.
+
+## QEMU concepts
+
+When I was studying the `socket_start_outgoing_migration` function, I found the control flow would go back to the entrance of migration and exit. QEMU will invoke `socket_outgoing_migration` after building a connection with the destination. This reminded me of event-driven programming. Check this [blog](https://blog.vmsplice.net/2020/08/qemu-internals-event-loops.html) for more.

@@ -555,6 +555,9 @@ void migrate_add_address(SocketAddress *address)
                       QAPI_CLONE(SocketAddress, address));
 }
 
+/* called in "hmp_migrate()".
+ * Parsing the address(uri) of the destination.
+ */
 bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
                        Error **errp)
 {
@@ -1668,6 +1671,7 @@ bool migrate_mode_is_cpr(MigrationState *s)
     return s->parameters.mode == MIG_MODE_CPR_REBOOT;
 }
 
+// initialize migration.
 int migrate_init(MigrationState *s, Error **errp)
 {
     int ret;
@@ -1818,7 +1822,9 @@ void migrate_del_blocker(Error **reasonp)
     }
 }
 
-// asd123www: with `-incoming`, from `qmp_x_exit_preconfig`.
+/* On the dest machine.
+ * asd123www: with `-incoming`, from `qmp_x_exit_preconfig`.
+ */
 void qmp_migrate_incoming(const char *uri, bool has_channels,
                           MigrationChannelList *channels, Error **errp)
 {
@@ -1938,7 +1944,9 @@ bool migration_is_blocked(Error **errp)
     return false;
 }
 
-/* Returns true if continue to migrate, or false if error detected */
+/* Returns true if continue to migrate, or false if error detected 
+ * Also, initialize migration.
+ */
 static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                             bool resume, Error **errp)
 {
@@ -2063,7 +2071,10 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     return true;
 }
 
-// asd123www: QEMU Machine Protocol migrate. Starting point of the migration.
+/* Src.
+ * asd123www: QEMU Machine Protocol migrate. 
+ * Starting point of the migration. 
+ */ 
 void qmp_migrate(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
@@ -2073,7 +2084,7 @@ void qmp_migrate(const char *uri, bool has_channels,
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     g_autoptr(MigrationChannel) channel = NULL;
-    MigrationAddress *addr = NULL;
+    MigrationAddress *addr = NULL; // the destination address.
 
     /*
      * Having preliminary checks for uri and channel
@@ -2092,7 +2103,7 @@ void qmp_migrate(const char *uri, bool has_channels,
         addr = channels->value->addr;
     }
 
-    if (uri) {
+    if (uri) { // normally it's NULL.
         /* caller uses the old URI syntax */
         if (!migrate_uri_parse(uri, &channel, errp)) {
             return;
@@ -2105,7 +2116,7 @@ void qmp_migrate(const char *uri, bool has_channels,
         return;
     }
 
-    resume_requested = has_resume && resume;
+    resume_requested = has_resume && resume; // false.
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          resume_requested, errp)) {
         /* Error detected, put into errp */
@@ -2468,6 +2479,10 @@ out:
     return NULL;
 }
 
+/* 'return path' a method for the destination to send messages back to the source; 
+ * used for postcopy page requests, and allows the destination to signal failure back to the source; 
+ * this is currently supported on TCP and fd (where the fd is socket backed).
+ */
 static int open_return_path_on_source(MigrationState *ms)
 {
     ms->rp_state.from_dst_file = qemu_file_get_return_path(ms->to_dst_file);
@@ -3695,7 +3710,11 @@ fail:
     return NULL;
 }
 
-// asd123www: enable different migration options, like post-copy.
+/* asd123www: enable different migration options, like post-copy.
+ * migration logic is here.
+ * Default: expected_downtime: 300 ms.
+ *          max_bandwidth: 134217728 bytes/s --> 1 Gb/s
+ */
 void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
@@ -3760,7 +3779,9 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         }
     }
 
-    /*
+    /* Check this: https://mail.gnu.org/archive/html/qemu-devel/2022-07/msg01421.html.
+     * Since we havn't planned to use hugepages, we can ignore this.
+     * 
      * This needs to be done before resuming a postcopy.  Note: for newer
      * QEMUs we will delay the channel creation until postcopy_start(), to
      * avoid disorder of channel creations.
@@ -3777,6 +3798,9 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         return;
     }
 
+    /* CheckPoint and Restart.
+     * https://www.qemu.org/docs/master/devel/migration/CPR.html
+     */
     if (migrate_mode_is_cpr(s)) {
         ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
         if (ret < 0) {

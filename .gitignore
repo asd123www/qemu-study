@@ -50,6 +50,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+*.DS_store
 qemu-monitor-migration
 kernel-image/bull*
 kernel-image/chroot/
