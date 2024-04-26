@@ -922,6 +922,8 @@ static void ramblock_sync_dirty_bitmap(RAMState *rs, RAMBlock *rb)
 }
 
 /**
+ * For normal VMs without hugepages, it will return 4k.
+ * 
  * ram_pagesize_summary: calculate all the pagesizes of a VM
  *
  * Returns a summary bitmap of the page sizes of all RAMBlocks

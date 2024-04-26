@@ -1079,6 +1079,7 @@ void qemu_savevm_send_colo_enable(QEMUFile *f)
     qemu_savevm_command_send(f, MIG_CMD_ENABLE_COLO, 0, NULL);
 }
 
+// 08 00 02 00 04 00 00 00 01
 void qemu_savevm_send_ping(QEMUFile *f, uint32_t value)
 {
     uint32_t buf;
@@ -1088,6 +1089,7 @@ void qemu_savevm_send_ping(QEMUFile *f, uint32_t value)
     qemu_savevm_command_send(f, MIG_CMD_PING, sizeof(value), (uint8_t *)&buf);
 }
 
+// 08 00 01 00 00
 void qemu_savevm_send_open_return_path(QEMUFile *f)
 {
     trace_savevm_send_open_return_path();
@@ -1249,6 +1251,10 @@ void qemu_savevm_non_migratable_list(strList **reasons)
     }
 }
 
+/* Send VM state header to the dest.
+ * In my experiment, it's "QEVM pc-i440fx-9.0".
+ * You can add qemu_fflush(f) to send the data instantly.
+ */
 void qemu_savevm_state_header(QEMUFile *f)
 {
     MigrationState *s = migrate_get_current();
@@ -1326,6 +1332,11 @@ void qemu_savevm_state_setup(QEMUFile *f)
     json_writer_start_array(ms->vmdesc, "devices");
 
     trace_savevm_state_setup();
+    
+    /* Here we enumerate each `device`, like `i8259`, `PCIBUS`, `serial`, etc.
+     * I don't know what is the meaning of those names.
+     * But our focus is `ram`, the most difficult one to migrate.
+     */
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->early_setup) {
             ret = vmstate_save(f, se, ms->vmdesc);
@@ -1344,10 +1355,12 @@ void qemu_savevm_state_setup(QEMUFile *f)
                 continue;
             }
         }
-        save_section_header(f, se, QEMU_VM_SECTION_START);
 
-        // Here `se->ops` points to `savevm_ram_handlers`.
-        // Therefore, this will jump to `ram_save_setup()` in `ram.c`.
+        /* Only `ram` device comes to this point.
+         * Here `se->ops` points to `savevm_ram_handlers`.
+         * Therefore, this will jump to `ram_save_setup()` in `ram.c`.
+         */
+        save_section_header(f, se, QEMU_VM_SECTION_START);
         ret = se->ops->save_setup(f, se->opaque);
         save_section_footer(f, se);
         if (ret < 0) {

@@ -3151,6 +3151,9 @@ static void migration_completion_end(MigrationState *s)
     bql_unlock();
 }
 
+/* Migration statistics.
+ * We have parameters like `max_bandwidth`, then you need to know the bandwidth usage.
+ */
 static void update_iteration_initial_status(MigrationState *s)
 {
     /*
@@ -3482,11 +3485,15 @@ static void *migration_thread(void *opaque)
         goto out;
     }
 
+    /* Big QEMU Lock: simple & less-efficient lock.
+     * `s->to_dst_file` is the communication channel fd to the dest.
+     */
     bql_lock();
     qemu_savevm_state_header(s->to_dst_file);
     bql_unlock();
 
-    /*
+    /* If you enable post-copy, then return path is enabled.
+     *
      * If we opened the return path, we need to make sure dst has it
      * opened as well.
      */
@@ -3572,7 +3579,10 @@ static void bg_migration_vm_start_bh(void *opaque)
     migration_downtime_end(s);
 }
 
-/**
+/** 
+ * Is this similar to our disaggregated memory migration?
+ * I think it can be a good reference.
+ * 
  * Background snapshot thread, based on live migration code.
  * This is an alternative implementation of live migration mechanism
  * introduced specifically to support background snapshots.
