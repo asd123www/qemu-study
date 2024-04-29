@@ -3247,7 +3247,7 @@ typedef enum {
     MIG_ITERATE_BREAK,          /* Break the loop */
 } MigIterateState;
 
-/* asd123www: The logic inside an iteration. Very intuitive, check the details later.
+/* One iteration in pre-copy.
  *
  * Return true if continue to the next iteration directly, false
  * otherwise.
@@ -3257,7 +3257,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     uint64_t must_precopy, can_postcopy, pending_size;
     Error *local_err = NULL;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
-    bool can_switchover = migration_can_switchover(s);
+    bool can_switchover = migration_can_switchover(s); 
 
     qemu_savevm_state_pending_estimate(&must_precopy, &can_postcopy);
     pending_size = must_precopy + can_postcopy;
@@ -3427,7 +3427,6 @@ bool migration_rate_limit(void)
  * if failover devices are present, wait they are completely
  * unplugged
  */
-
 static void qemu_savevm_wait_unplug(MigrationState *s, int old_state,
                                     int new_state)
 {
@@ -3519,11 +3518,14 @@ static void *migration_thread(void *opaque)
         qemu_savevm_send_colo_enable(s->to_dst_file);
     }
 
-    // dirty pages before live-migration.
+    // setup before live-migration.
     bql_lock();
     qemu_savevm_state_setup(s->to_dst_file);
     bql_unlock();
 
+    /* Wait for devices to be unplugged.
+     * A loop that waits on a semaphore.
+     */
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
                                MIGRATION_STATUS_ACTIVE);
 

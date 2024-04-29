@@ -843,6 +843,9 @@ static int multifd_zero_copy_flush(QIOChannel *c)
     return ret;
 }
 
+/* Seems here we need some coordination from other threads.
+ * So we released the bql_unlock, but I have no idea what's going on.
+ */
 int multifd_send_sync_main(void)
 {
     int i;

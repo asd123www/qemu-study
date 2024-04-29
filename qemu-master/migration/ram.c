@@ -2889,7 +2889,9 @@ static void ram_init_bitmaps(RAMState *rs)
     migration_bitmap_clear_discarded_pages(rs);
 }
 
-// Initialize the RAMState object and dirty the bitmap.
+/* Allocate RAMState and initialize it.
+ * Also bitmap.
+ */ 
 static int ram_init_all(RAMState **rsp)
 {
     if (ram_state_init(rsp)) {
@@ -3099,15 +3101,16 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        // Initialize the RAMState object and set the 
+        // Initialize the RAMState object.
         if (ram_init_all(rsp) != 0) {
             compress_threads_save_cleanup();
             return -1;
         }
     }
-    (*rsp)->pss[RAM_CHANNEL_PRECOPY].pss_channel = f;
+    (*rsp)->pss[RAM_CHANNEL_PRECOPY].pss_channel = f; // communication channel.
 
-    /*
+    /* For VMs without hugepage, it's 4096.
+     *
      * ??? Mirrors the previous value of qemu_host_page_size,
      * but is this really what was intended for the migration?
      */
@@ -3116,7 +3119,20 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     WITH_RCU_READ_LOCK_GUARD() {
         qemu_put_be64(f, ram_bytes_total_with_ignored()
                          | RAM_SAVE_FLAG_MEM_SIZE);
-
+        /* You have different blocks of ram in a VM.
+         * Here is a list of different blocks:
+         *      pc.ram 4096 17179869184
+         *      0000:00:02.0/vga.vram 4096 16777216
+         *      /rom@etc/acpi/tables 4096 131072
+         *      pc.bios 4096 262144
+         *      0000:00:03.0/virtio-net-pci.rom 4096 262144
+         *      pc.rom 4096 131072
+         *      0000:00:02.0/vga.rom 4096 65536
+         *      /rom@etc/table-loader 4096 4096
+         *      /rom@etc/acpi/rsdp 4096 4096
+         * I created a 16GB VM, so pc.ram is 16GB.
+         * Our focus is pc.ram, since other parts are negligible.
+         */
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
 
             qemu_put_byte(f, strlen(block->idstr));
@@ -3150,6 +3166,10 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     migration_ops = g_malloc0(sizeof(MigrationOps));
 
+    /* Send data over multiple fds.
+     * For more details, check https://wiki.qemu.org/Features/Migration-Multiple-fds.
+     * The only difference is how to send the data, so only change the sending function.
+     */
     if (migrate_multifd()) {
         migration_ops->ram_save_target_page = ram_save_target_page_multifd;
     } else {
@@ -4680,6 +4700,10 @@ static RAMBlockNotifier ram_mig_ram_notifier = {
     .ram_block_resized = ram_mig_ram_block_resized,
 };
 
+/* register `ram` device in savevm_ram_handlers.
+ * `opaque` is a pointer to *ram_state, so it's **ram_state.
+ * `*ram_state` is NULL at this point, we will allocate it in `ram_save_setup`, `ram_init_all`.
+ */
 void ram_mig_init(void)
 {
     qemu_mutex_init(&XBZRLE.lock);

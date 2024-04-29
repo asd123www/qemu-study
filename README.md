@@ -7,6 +7,7 @@ The experiment is based on the `xl170` machine in Cloudlab with `kernel 5.4.0-16
 ```
 sudo qemu-system-x86_64 \
 		--enable-kvm \
+		-cpu host \
 		-smp 2 \
 		-m 16G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
@@ -23,6 +24,7 @@ The `-monitor` option creates a Unix socket file for further monitoring the VM. 
 ```
 sudo qemu-system-x86_64 \
 		--enable-kvm \
+		-cpu host \
 		-smp 2 \
 		-m 16G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
