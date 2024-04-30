@@ -12,7 +12,7 @@ set -eux
 
 # Create a minimal Debian distribution in a directory.
 DIR=chroot
-PREINSTALL_PKGS=openssh-server,curl,tar,gcc,vim,htop,tcpdump,iperf,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
+PREINSTALL_PKGS=openssh-server,curl,tar,gcc,vim,htop,fish,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
 
 # If ADD_PACKAGE is not defined as an external environment variable, use our default packages
 if [ -z ${ADD_PACKAGE+x} ]; then
@@ -176,6 +176,13 @@ cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 # asd123www: Create the redis server configure file.
 sudo touch $DIR/root/redis-server.conf
 cat ../apps/redis/redis-server.conf | sudo tee $DIR/root/redis-server.conf
+sudo mkdir -p $DIR/root/tcp/
+sudo touch $DIR/root/tcp/client.c
+sudo touch $DIR/root/tcp/server.c
+sudo touch $DIR/root/tcp/Makefile
+cat ../apps/tcp/client.c | sudo tee $DIR/root/tcp/client.c
+cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
+cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
 
 # Add perf support
 if [ $PERF = "true" ]; then
