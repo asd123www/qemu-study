@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <time.h>
 
-
-#define WARMUP 100000
-#define TOTAL_ROUND 2000000
+#define MAX 1024
+#define WARMUP 1000
+#define TOTAL_ROUND 200000
 
 long arr[TOTAL_ROUND + 5];
 int cmpfunc (const void * a, const void * b) {
@@ -56,7 +56,7 @@ int main() {
 
     struct timespec start, end;
 
-    char buff[1024];
+    char buff[MAX];
     uint32_t size = 32;
     for (int i = 0; i < TOTAL_ROUND; ++i) {
         clock_gettime(CLOCK_MONOTONIC, &start);
@@ -68,6 +68,7 @@ int main() {
         if (i > WARMUP) {
             arr[++arr[0]] = end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec;
         }
+        for(int i = 0; i < MAX; ++i) buf[i] = rand();
     }
 
     // close the socket

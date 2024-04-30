@@ -28,7 +28,7 @@ bool StrStartWith(const char *str, const char *pre);
 string ParseCommandLine(int argc, const char *argv[], utils::Properties &props);
 
 
-std::vector<std::pair<long long, int>> lat[100];
+std::vector<std::pair<std::pair<long long, long long>, int>> lat[100];
 
 int DelegateClient(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bool is_loading, int idx) {
   db->Init();
@@ -45,8 +45,9 @@ int DelegateClient(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bo
       clock_gettime(CLOCK_MONOTONIC, &start);
       oks += client.DoTransaction();
       clock_gettime(CLOCK_MONOTONIC, &end);
-      lat[idx].push_back(std::make_pair(start.tv_sec * 1000000000LL + start.tv_nsec, 
-                                        end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec));
+      lat[idx].push_back(std::make_pair(make_pair(start.tv_sec * 1000000000LL + start.tv_nsec, 
+                                                  end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec),
+                                        idx));
     }
   }
   db->Close();
@@ -132,7 +133,7 @@ int main(const int argc, const char *argv[]) {
   std::ofstream file("redis_result.txt");
   for (int i = 1; i < num_threads; ++i) lat[0].insert(lat[0].end(), lat[i].begin(), lat[i].end());
   std::sort(lat[0].begin(), lat[0].end());
-  for (uint32_t i = 0; i < lat[0].size(); ++i) file << lat[0][i].first << " " << lat[0][i].second << std::endl;
+  for (uint32_t i = 0; i < lat[0].size(); ++i) file << lat[0][i].first.first << " " << lat[0][i].first.second << " " << lat[0][i].second <<std::endl;
 }
 
 string ParseCommandLine(int argc, const char *argv[], utils::Properties &props) {
