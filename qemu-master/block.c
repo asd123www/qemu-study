@@ -6998,6 +6998,7 @@ static int GRAPH_RDLOCK bdrv_inactivate_recurse(BlockDriverState *bs)
     return 0;
 }
 
+// suspend all I/O operations on block devices?
 int bdrv_inactivate_all(void)
 {
     BlockDriverState *bs = NULL;

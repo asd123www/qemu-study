@@ -715,6 +715,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+/* `migrate_start_postcopy` in monitor.
+ * start the postcopy migration.
+ */
 void hmp_migrate_start_postcopy(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;

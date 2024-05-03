@@ -1018,6 +1018,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
             postcopy_pause_fault_thread(mis);
         }
 
+        // quit notification.
         if (pfd[1].revents) {
             uint64_t tmp64 = 0;
 
@@ -1033,6 +1034,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
             }
         }
 
+        // page fault.
         if (pfd[0].revents) {
             poll_result--;
             ret = read(mis->userfault_fd, &msg, sizeof(msg));
@@ -1094,6 +1096,8 @@ retry:
             }
         }
 
+        // Normally we don't have external devices.
+        // Can we reuse the code if we have shared memory? I don't know.
         /* Now handle any requests from external processes on shared memory */
         /* TODO: May need to handle devices deregistering during postcopy */
         for (index = 2; index < pfd_len && poll_result; index++) {
@@ -1208,6 +1212,9 @@ static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
     return 0;
 }
 
+/* On destination.
+ * Implement the page fault & far memory logic.
+ */
 int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
 {
     Error *local_err = NULL;

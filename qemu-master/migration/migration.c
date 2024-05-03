@@ -1353,6 +1353,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     return info;
 }
 
+/* Start postcopy.
+ */
 void qmp_migrate_start_postcopy(Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -2553,6 +2555,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     if (migrate_postcopy_preempt()) {
         migration_wait_main_channel(ms);
+        // build an preemption channel for faulted pages.
         if (postcopy_preempt_establish_channel(ms)) {
             migrate_set_state(&ms->state, ms->state, MIGRATION_STATUS_FAILED);
             return -1;
@@ -2568,6 +2571,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     bql_lock();
     trace_postcopy_start_set_run();
 
+    // stop the vm.
     ret = migration_stop_vm(ms, RUN_STATE_FINISH_MIGRATE);
     if (ret < 0) {
         goto fail;
@@ -2591,7 +2595,8 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_state_complete_precopy(ms->to_dst_file, true, false);
 
-    /*
+    /* In case some pages are dirties during shutdown.
+     * 
      * in Finish migrate and with the io-lock held everything should
      * be quiet, but we've potentially still got dirty pages and we
      * need to tell the destination to throw any pages it's already received
@@ -3272,14 +3277,20 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     // asd123www_impl: break pre-copy after 20 iterations.
     static iter = 0;
     ++iter;
-    if (((!pending_size || pending_size < s->threshold_size) && can_switchover) ||
-        (iter == 199999999 && can_switchover)) {
+    // if (((!pending_size || pending_size < s->threshold_size) && can_switchover) ||
+        // (iter == 199999999 && can_switchover)) {
+    if ((!pending_size || pending_size < s->threshold_size) && can_switchover) {
         trace_migration_thread_low_pending(pending_size);
         migration_completion(s);
         return MIG_ITERATE_BREAK;
     }
 
-    /* Still a significant amount to transfer */
+    /* Still a significant amount to transfer 
+     *
+     * Check if the monitor just started post-copy migration.
+     * If started, call postcopy & skip this pre-copy iteration.
+     * But the pre-copy iterations continue, equal to activly pushing pages in post-copy.
+     */
     if (!in_postcopy && must_precopy <= s->threshold_size && can_switchover &&
         qatomic_read(&s->start_postcopy)) {
         if (postcopy_start(s, &local_err)) {
