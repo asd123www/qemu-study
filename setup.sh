@@ -66,11 +66,16 @@ sudo ip link set ens1f1 master br0
 ip_addr=$(ip addr show ens1f1 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
 sudo ip addr flush dev ens1f1 
 sudo ip addr add $ip_addr/24 brd + dev br0
+# tap0 for src, tap1 for dst.
 sudo ip tuntap add dev tap0 mode tap
 sudo ip link set dev tap0 up
 sudo ip link set tap0 master br0
+sudo ip tuntap add dev tap1 mode tap
+sudo ip link set dev tap1 up
+sudo ip link set tap1 master br0
 
 # disable nic adaptive batching.
 sudo ethtool -C ens1f1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
 sudo ethtool -C ens1f1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
 sudo ethtool -C tap0 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+sudo ethtool -C tap1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
