@@ -844,6 +844,8 @@ void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
     uint64_t shm_size = qdict_get_int(qdict, "value"); // memory size, GB.
     shm_size *= 1024ll * 1024 * 1024;
 
+    Error *err = NULL;
+
     // create the shared memory.
     int shm_fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);
     if (shm_fd == -1) {
@@ -862,7 +864,15 @@ void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
         exit(EXIT_FAILURE);
     }
     memset(shm_ptr, 0, shm_size);
-    strcpy((char*)shm_ptr, "asd123www: shared from qemu!");
+
+    printf("hello world!\n");
+
+    qmp_shm_migrate(shm_ptr, shm_size, &err);
+
+    if (err) {
+        printf("hmp_shm_migrate: something wrong happened.");fflush(stdout);
+        exit(-1);
+    }
 
     return;
 }

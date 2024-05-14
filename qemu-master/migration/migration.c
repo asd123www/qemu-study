@@ -3275,8 +3275,6 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     }
 
     // asd123www_impl: break pre-copy after 20 iterations.
-    static iter = 0;
-    ++iter;
     // if (((!pending_size || pending_size < s->threshold_size) && can_switchover) ||
         // (iter == 199999999 && can_switchover)) {
     if ((!pending_size || pending_size < s->threshold_size) && can_switchover) {
@@ -3584,6 +3582,29 @@ out: // clean
     return NULL;
 }
 
+
+/* Zezhou: logic of shared memory migration.
+ * 
+ */
+static void *shm_migration_thread(void *opaque)
+{
+    MigrationState *s = opaque;
+    MigrationThread *thread = NULL;
+
+    thread = migration_threads_add("shared_memory_migration", qemu_get_thread_id());
+
+
+    while (1) {
+        sleep(1);
+        puts("Hello world!");
+    }
+
+out: // clean
+    return NULL;
+}
+
+
+
 static void bg_migration_vm_start_bh(void *opaque)
 {
     MigrationState *s = opaque;
@@ -3732,6 +3753,49 @@ fail:
 
     return NULL;
 }
+
+
+
+/* Zezhou: shared memory migration.
+ * 
+ */
+void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp) 
+{
+    Error *local_err = NULL;
+    uint64_t rate_limit;
+    MigrationState *s = migrate_get_current();
+    assert(s->state == MIGRATION_STATUS_NONE);
+
+    if (!migrate_prepare(s, 0, 0, 0, errp)) {
+        /* Error detected, put into errp */
+        return;
+    }
+    assert(s->state == MIGRATION_STATUS_SETUP);
+
+    // actually I don't know what is this.
+    migrate_error_free(s);
+
+    s->shm_ptr = shm_ptr;
+    s->shm_size = shm_size;
+
+    s->expected_downtime = migrate_downtime_limit();
+
+    if (migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP, &local_err)) {
+        goto fail;
+    }
+
+    qemu_thread_create(&s->thread, "shared_memory_migration",
+            shm_migration_thread, s, QEMU_THREAD_JOINABLE);
+    s->migration_thread_running = true;
+    return;
+
+fail:
+    migrate_set_error(s, local_err);
+    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+    error_report_err(local_err);
+}
+
+
 
 /* asd123www: enable different migration options, like post-copy.
  * migration logic is here.

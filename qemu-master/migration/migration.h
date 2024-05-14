@@ -470,6 +470,11 @@ struct MigrationState {
     bool switchover_acked;
     /* Is this a rdma migration */
     bool rdma_migration;
+
+
+    // Zezhou: add shared memory object.
+    void *shm_ptr;
+    uint64_t shm_size;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
