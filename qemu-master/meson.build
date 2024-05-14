@@ -301,6 +301,7 @@ qemu_common_flags = [
   '-fno-strict-aliasing', '-fno-common', '-fwrapv' ]
 qemu_cflags = []
 qemu_ldflags = []
+qemu_ldflags += ['-lrt']
 
 if host_os == 'darwin'
   # Disable attempts to use ObjectiveC features in os/object.h since they

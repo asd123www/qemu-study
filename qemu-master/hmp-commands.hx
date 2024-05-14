@@ -1026,9 +1026,9 @@ ERST
 
     {
         .name       = "shm_migrate",
-        .args_type  = "uri:s",
-        .params     = "uri",
-        .help       = "VM migration via shared memory",
+        .args_type  = "uri:s,value:i",
+        .params     = "uri value",
+        .help       = "VM migration via shared memory, path & memory size GB",
         .cmd        = hmp_shm_migrate,
     },
 

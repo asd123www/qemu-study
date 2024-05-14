@@ -13,6 +13,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "qemu/osdep.h"
 #include "block/qapi.h"
 #include "migration/snapshot.h"
@@ -836,9 +840,32 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
  */ 
 void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
 {
-    puts("hello world!");
-}
+    const char *shm_name = qdict_get_str(qdict, "uri"); // path to shared memory.
+    uint64_t shm_size = qdict_get_int(qdict, "value"); // memory size, GB.
+    shm_size *= 1024ll * 1024 * 1024;
 
+    // create the shared memory.
+    int shm_fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+    // Set the size of the shared memory object
+    if (ftruncate(shm_fd, shm_size) == -1) {
+        perror("ftruncate");
+        exit(EXIT_FAILURE);
+    }
+    // Map the shared memory object into the process's address space
+    void *shm_ptr = mmap(0, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shm_ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+    memset(shm_ptr, 0, shm_size);
+    strcpy((char*)shm_ptr, "asd123www: shared from qemu!");
+
+    return;
+}
 
 
 
