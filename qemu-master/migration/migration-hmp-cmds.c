@@ -831,6 +831,17 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     }
 }
 
+
+/* Zezhou: shm_migrate.
+ */ 
+void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
+{
+    puts("hello world!");
+}
+
+
+
+
 void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
                                        const char *str)
 {

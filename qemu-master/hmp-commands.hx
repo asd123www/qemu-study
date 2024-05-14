@@ -1020,6 +1020,19 @@ ERST
     },
 
 SRST
+``shm_migrate`` *capability* *state*
+  EMpower: fast VM migration via shared memory.
+ERST
+
+    {
+        .name       = "shm_migrate",
+        .args_type  = "uri:s",
+        .params     = "uri",
+        .help       = "VM migration via shared memory",
+        .cmd        = hmp_shm_migrate,
+    },
+
+SRST
 ``migrate_set_parameter`` *parameter* *value*
   Set the parameter *parameter* for migration.
 ERST
