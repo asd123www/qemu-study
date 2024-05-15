@@ -473,8 +473,10 @@ struct MigrationState {
 
 
     // Zezhou: add shared memory object.
-    void *shm_ptr;
-    uint64_t shm_size;
+    struct shm_target {
+        void *shm_ptr;
+        uint64_t shm_size;
+    } shm_obj;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

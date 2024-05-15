@@ -27,6 +27,7 @@ system_ss.add(files(
   'options.c',
   'postcopy-ram.c',
   'savevm.c',
+  'savevm-shm.c',
   'socket.c',
   'tls.c',
   'threadinfo.c',

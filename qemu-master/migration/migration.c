@@ -33,6 +33,7 @@
 #include "migration.h"
 #include "migration-stats.h"
 #include "savevm.h"
+#include "savevm-shm.h"
 #include "qemu-file.h"
 #include "channel.h"
 #include "migration/vmstate.h"
@@ -3590,8 +3591,17 @@ static void *shm_migration_thread(void *opaque)
 {
     MigrationState *s = opaque;
     MigrationThread *thread = NULL;
+    MigThrError thr_error;
 
     thread = migration_threads_add("shared_memory_migration", qemu_get_thread_id());
+
+    rcu_register_thread();
+    object_ref(OBJECT(s));
+    update_iteration_initial_status(s);
+
+    bql_lock();
+    qemu_savevm_state_header_shm(s);
+    bql_unlock();
 
 
     while (1) {
@@ -3775,8 +3785,8 @@ void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp)
     // actually I don't know what is this.
     migrate_error_free(s);
 
-    s->shm_ptr = shm_ptr;
-    s->shm_size = shm_size;
+    s->shm_obj.shm_ptr = shm_ptr;
+    s->shm_obj.shm_size = shm_size;
 
     s->expected_downtime = migrate_downtime_limit();
 
