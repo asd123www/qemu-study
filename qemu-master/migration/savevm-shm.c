@@ -49,34 +49,58 @@
 #include "options.h"
 
 
+
+void shm_put_byte(shm_target *f, int v)
+{
+    f->shm_ptr[f->shm_offset++] = v;
+}
+void shm_put_be16(shm_target *f, unsigned int v) 
+{
+    shm_put_byte(f, v >> 8);
+    shm_put_byte(f, v);
+}
+void shm_put_be32(shm_target *f, unsigned int v) 
+{
+    shm_put_byte(f, v >> 24);
+    shm_put_byte(f, v >> 16);
+    shm_put_byte(f, v >> 8);
+    shm_put_byte(f, v);
+}
+void shm_put_be64(shm_target *f, uint64_t v) 
+{
+    shm_put_be32(f, v >> 32);
+    shm_put_be32(f, v);
+}
+
+
 /* Send VM state header to the dest.
  * In my experiment, it's "QEVM pc-i440fx-9.0".
  * You can add qemu_fflush(f) to send the data instantly.
  */
-void qemu_savevm_state_header_shm(QEMUFile *f)
+void qemu_savevm_state_header_shm(shm_target *f)
 {
     puts("qemu_savevm_state_header_shm");
+    printf("%s\n", f->shm_ptr);
 
-    // MigrationState *s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
-    // s->vmdesc = json_writer_new(false);
+    s->vmdesc = json_writer_new(false);
 
-    // trace_savevm_state_header();
-    // qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
-    // qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+    shm_put_be32(f, QEMU_VM_FILE_MAGIC);
+    shm_put_be32(f, QEMU_VM_FILE_VERSION);
 
-    // if (s->send_configuration) {
-    //     qemu_put_byte(f, QEMU_VM_CONFIGURATION);
+    if (s->send_configuration) {
+        shm_put_byte(f, QEMU_VM_CONFIGURATION);
 
-    //     /*
-    //      * This starts the main json object and is paired with the
-    //      * json_writer_end_object in
-    //      * qemu_savevm_state_complete_precopy_non_iterable
-    //      */
-    //     json_writer_start_object(s->vmdesc, NULL);
+        /*
+         * This starts the main json object and is paired with the
+         * json_writer_end_object in
+         * qemu_savevm_state_complete_precopy_non_iterable
+         */
+        json_writer_start_object(s->vmdesc, NULL);
 
-    //     json_writer_start_object(s->vmdesc, "configuration");
-    //     vmstate_save_state(f, &vmstate_configuration, &savevm_state, s->vmdesc);
-    //     json_writer_end_object(s->vmdesc);
-    // }
+        json_writer_start_object(s->vmdesc, "configuration");
+        // vmstate_save_state(f, &vmstate_configuration, &savevm_state, s->vmdesc);
+        json_writer_end_object(s->vmdesc);
+    }
 }

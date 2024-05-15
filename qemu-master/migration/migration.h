@@ -253,6 +253,15 @@ struct MigrationClass {
     DeviceClass parent_class;
 };
 
+
+// zezhou: shared memory target.
+struct shm_target {
+    uint8_t *shm_ptr;
+    uint64_t shm_size;
+    uint64_t shm_offset;
+};
+typedef struct shm_target shm_target;
+
 struct MigrationState {
     /*< private >*/
     DeviceState parent_obj;
@@ -473,10 +482,7 @@ struct MigrationState {
 
 
     // Zezhou: add shared memory object.
-    struct shm_target {
-        void *shm_ptr;
-        uint64_t shm_size;
-    } shm_obj;
+    shm_target shm_obj;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

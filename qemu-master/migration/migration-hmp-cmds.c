@@ -865,8 +865,7 @@ void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
     }
     memset(shm_ptr, 0, shm_size);
 
-    printf("hello world!\n");
-
+    // migrate via shared memory.
     qmp_shm_migrate(shm_ptr, shm_size, &err);
 
     if (err) {

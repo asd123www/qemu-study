@@ -3600,7 +3600,7 @@ static void *shm_migration_thread(void *opaque)
     update_iteration_initial_status(s);
 
     bql_lock();
-    qemu_savevm_state_header_shm(s);
+    qemu_savevm_state_header_shm(&s->shm_obj);
     bql_unlock();
 
 
@@ -3785,6 +3785,7 @@ void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp)
     // actually I don't know what is this.
     migrate_error_free(s);
 
+    s->shm_obj.shm_offset = 0;
     s->shm_obj.shm_ptr = shm_ptr;
     s->shm_obj.shm_size = shm_size;
 
