@@ -3565,3 +3565,133 @@ void qmp_snapshot_delete(const char *job_id,
 
     job_start(&s->common);
 }
+
+
+
+
+
+/* --------------------- shared-memory migration --------------------- */
+
+void shm_put_byte(shm_target *f, int v)
+{
+    f->shm_ptr[f->shm_offset++] = v;
+}
+void shm_put_buffer(shm_target *f, const uint8_t *buf, size_t size)
+{
+    assert(f->shm_offset <= f->shm_size);
+    memcpy(f->shm_ptr + f->shm_offset, buf, size);
+    f->shm_offset += size;
+}
+void shm_put_be16(shm_target *f, unsigned int v) 
+{
+    shm_put_byte(f, v >> 8);
+    shm_put_byte(f, v);
+}
+void shm_put_be32(shm_target *f, unsigned int v) 
+{
+    shm_put_byte(f, v >> 24);
+    shm_put_byte(f, v >> 16);
+    shm_put_byte(f, v >> 8);
+    shm_put_byte(f, v);
+}
+void shm_put_be64(shm_target *f, uint64_t v) 
+{
+    shm_put_be32(f, v >> 32);
+    shm_put_be32(f, v);
+}
+
+
+
+
+/* Send VM state header to the dest.
+ * In my experiment, it's "QEVM pc-i440fx-9.0".
+ * You can add qemu_fflush(f) to send the data instantly.
+ * 
+ * This is not going to happen in critical path, so it's fine to have one extra copy.
+ */
+void qemu_savevm_state_header_shm(shm_target *shm_obj)
+{
+    uint32_t size = 1024 * 1024;
+    QIOChannelBuffer *sioc = qio_channel_buffer_new(size);
+    QEMUFile *f = qemu_file_new_output(QIO_CHANNEL(sioc));
+    qemu_savevm_state_header(f);
+    qemu_fflush(f);
+
+    assert(sioc->usage <= size);
+    shm_put_buffer(shm_obj, sioc->data, sioc->usage);
+
+    // delete QEMUFile *f and sioc.
+    qemu_fclose(f);
+    object_unref(OBJECT(sioc));
+}
+
+void qemu_savevm_state_setup_shm(shm_target *shm_obj)
+{
+    uint32_t size = 1024 * 1024;
+    QIOChannelBuffer *sioc = qio_channel_buffer_new(size);
+    QEMUFile *f = qemu_file_new_output(QIO_CHANNEL(sioc));
+
+    MigrationState *ms = migrate_get_current();
+    SaveStateEntry *se;
+    Error *local_err = NULL;
+    int ret = 0;
+
+    assert(qemu_target_page_size() == 4096);
+    json_writer_int64(ms->vmdesc, "page_size", qemu_target_page_size());
+    json_writer_start_array(ms->vmdesc, "devices");
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->vmsd && se->vmsd->early_setup) {
+            ret = vmstate_save(f, se, ms->vmdesc);
+            if (ret) {
+                qemu_file_set_error(f, ret);
+                break;
+            }
+            continue;
+        }
+
+        if (!se->ops || !se->ops->save_setup) {
+            continue;
+        }
+        if (se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+
+        assert(se->ops->save_setup_shm);
+        /* Only `ram` device comes to this point.
+         * Here `se->ops` points to `savevm_ram_handlers`.
+         * Therefore, this will jump to `ram_save_setup()` in `ram.c`.
+         */
+        save_section_header(f, se, QEMU_VM_SECTION_START);
+        ret = se->ops->save_setup_shm(f, se->opaque);
+        save_section_footer(f, se);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+            break;
+        }
+    }
+
+    if (ret) {
+        return;
+    }
+
+    if (precopy_notify(PRECOPY_NOTIFY_SETUP, &local_err)) {
+        error_report_err(local_err);
+    }
+
+    /* It's very dangerous here.
+     * Since I only use this file as a intermediate buffer, I will delete it.
+     * However in ram_save_setup, they will remember this file and use it later.
+     * Make sure you don't use it in shared memory migration...
+     */
+    qemu_fflush(f);
+
+    assert(sioc->usage <= size);
+    shm_put_buffer(shm_obj, sioc->data, sioc->usage);
+
+    // delete QEMUFile *f and sioc.
+    qemu_fclose(f);
+    object_unref(OBJECT(sioc));
+}

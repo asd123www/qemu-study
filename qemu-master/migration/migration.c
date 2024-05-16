@@ -33,7 +33,6 @@
 #include "migration.h"
 #include "migration-stats.h"
 #include "savevm.h"
-#include "savevm-shm.h"
 #include "qemu-file.h"
 #include "channel.h"
 #include "migration/vmstate.h"
@@ -3599,17 +3598,39 @@ static void *shm_migration_thread(void *opaque)
     object_ref(OBJECT(s));
     update_iteration_initial_status(s);
 
+    // send machine header.
     bql_lock();
     qemu_savevm_state_header_shm(&s->shm_obj);
     bql_unlock();
 
+    // setup.
+    bql_lock();
+    qemu_savevm_state_setup_shm(&s->shm_obj);
+    bql_unlock();
 
-    while (1) {
+    qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
+                               MIGRATION_STATUS_ACTIVE);
+
+    // start pre-copy migration.
+    while (migration_is_active()) {
+        /* Shared memory migration uses another infra.
+         * No need to do rate limiting here.
+         */ 
+
         sleep(1);
         puts("Hello world!");
+        // MigIterateState iter_state = migration_iteration_run(s);
+        // if (iter_state == MIG_ITERATE_SKIP) {
+        //     continue;
+        // } else if (iter_state == MIG_ITERATE_BREAK) {
+        //     break;
+        // }
     }
 
 out: // clean
+    object_unref(OBJECT(s));
+    rcu_unregister_thread();
+    migration_threads_remove(thread);
     return NULL;
 }
 

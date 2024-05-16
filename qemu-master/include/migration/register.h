@@ -65,6 +65,22 @@ typedef struct SaveVMHandlers {
      */
     int (*save_setup)(QEMUFile *f, void *opaque);
 
+
+    /**
+     * @save_setup_shm
+     *
+     * Initializes the data structures on the source and transmits
+     * first section containing information on the device
+     *
+     * @f: QEMUFile where to send the data
+     * @opaque: data pointer passed to register_savevm_live()
+     *
+     * Returns zero to indicate success and negative for error
+     */
+    int (*save_setup_shm)(QEMUFile *f, void *opaque);
+
+
+
     /**
      * @save_cleanup
      *

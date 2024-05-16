@@ -3192,6 +3192,47 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     return qemu_fflush(f);
 }
 
+
+/* shared memory setup.
+ * 
+ */
+static int ram_save_setup_shm(QEMUFile *f, void *opaque) 
+{
+    RAMState **rsp = opaque; // ram_state, check `register_savevm_live`.
+    RAMBlock *block;
+
+    // (*rsp)->pss[RAM_CHANNEL_PRECOPY].pss_channel = f; // communication channel.
+    int max_hg_page_size = MAX(qemu_real_host_page_size(), TARGET_PAGE_SIZE);
+    assert(max_hg_page_size == 4096);
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        qemu_put_be64(f, ram_bytes_total_with_ignored()
+                         | RAM_SAVE_FLAG_MEM_SIZE);
+        RAMBLOCK_FOREACH_MIGRATABLE(block) {
+
+            qemu_put_byte(f, strlen(block->idstr));
+            qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
+            qemu_put_be64(f, block->used_length);
+            if (migrate_postcopy_ram() &&
+                block->page_size != max_hg_page_size) {
+                qemu_put_be64(f, block->page_size);
+            }
+            if (migrate_ignore_shared()) {
+                qemu_put_be64(f, block->mr->addr);
+            }
+
+            if (migrate_mapped_ram()) {
+                mapped_ram_setup_ramblock(f, block);
+            }
+        }
+    }
+    
+    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+
+    return qemu_fflush(f);
+}
+
+
 static void ram_save_file_bmap(QEMUFile *f)
 {
     RAMBlock *block;
@@ -4622,6 +4663,7 @@ void postcopy_preempt_shutdown_file(MigrationState *s)
 }
 
 static SaveVMHandlers savevm_ram_handlers = {
+    .save_setup_shm = ram_save_setup_shm, // shared memory setup handler.
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
     .save_live_complete_postcopy = ram_save_complete,
