@@ -1508,6 +1508,9 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
     qemu_fflush(f);
 }
 
+/* Zezhou: `f == NULL` means we are using shared memory migration.
+ * 
+ */
 static
 int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
 {
@@ -1532,11 +1535,16 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
         start_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
         trace_savevm_section_start(se->idstr, se->section_id);
 
-        save_section_header(f, se, QEMU_VM_SECTION_END);
+        // 03 00 00 00 02
+        if (f != NULL) {
+            save_section_header(f, se, QEMU_VM_SECTION_END);
+        }
 
         ret = se->ops->save_live_complete_precopy(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
-        save_section_footer(f, se);
+        if (f != NULL) {
+            save_section_footer(f, se);
+        }
         if (ret < 0) {
             qemu_file_set_error(f, ret);
             return -1;
@@ -3665,7 +3673,7 @@ void qemu_savevm_state_setup_shm(shm_target *shm_obj)
          * Therefore, this will jump to `ram_save_setup()` in `ram.c`.
          */
         save_section_header(f, se, QEMU_VM_SECTION_START);
-        ret = se->ops->save_setup_shm(f, se->opaque);
+        ret = se->ops->save_setup_shm(f, se->opaque, (void *)shm_obj);
         save_section_footer(f, se);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
@@ -3681,11 +3689,6 @@ void qemu_savevm_state_setup_shm(shm_target *shm_obj)
         error_report_err(local_err);
     }
 
-    /* It's very dangerous here.
-     * Since I only use this file as a intermediate buffer, I will delete it.
-     * However in ram_save_setup, they will remember this file and use it later.
-     * Make sure you don't use it in shared memory migration...
-     */
     qemu_fflush(f);
 
     assert(sioc->usage <= size);
@@ -3694,4 +3697,28 @@ void qemu_savevm_state_setup_shm(shm_target *shm_obj)
     // delete QEMUFile *f and sioc.
     qemu_fclose(f);
     object_unref(OBJECT(sioc));
+}
+
+int qemu_savevm_state_complete_precopy_shm()
+{
+    int ret;
+
+    // save all cpu states.
+    cpu_synchronize_all_states();
+
+    // iterable: RAM.
+
+    ret = qemu_savevm_state_complete_precopy_iterable(NULL, false);
+    if (ret) {
+        return ret;
+    }
+
+
+    // non-iterable: other devices.
+    ret = qemu_savevm_state_complete_precopy_non_iterable(NULL, 0, 1);
+    if (ret) {
+        return ret;
+    }
+
+    return 0;
 }

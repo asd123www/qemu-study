@@ -259,6 +259,7 @@ struct shm_target {
     uint8_t *shm_ptr;
     uint64_t shm_size;
     uint64_t shm_offset;
+    uint8_t *ram;
 };
 typedef struct shm_target shm_target;
 

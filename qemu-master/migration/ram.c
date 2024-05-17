@@ -131,6 +131,9 @@ struct PageSearchStatus {
     /* The start/end of current host page.  Invalid if host_page_sending==false */
     unsigned long host_page_start;
     unsigned long host_page_end;
+
+    /* for shared memory migration */
+    shm_target *shm_obj;
 };
 typedef struct PageSearchStatus PageSearchStatus;
 
@@ -1219,19 +1222,27 @@ static int save_normal_page(PageSearchStatus *pss, RAMBlock *block,
 {
     QEMUFile *file = pss->pss_channel;
 
-    if (migrate_mapped_ram()) {
-        qemu_put_buffer_at(file, buf, TARGET_PAGE_SIZE,
-                           block->pages_offset + offset);
-        set_bit(offset >> TARGET_PAGE_BITS, block->file_bmap);
+    printf("save_normal_page: mapped_ram %d\n", migrate_mapped_ram());
+    printf("save_normal_page: shm %d\n", pss->shm_obj != NULL);
+    /* shm_migration: */
+    if (pss->shm_obj != NULL) {
+        memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
+               buf, TARGET_PAGE_SIZE);
     } else {
-        ram_transferred_add(save_page_header(pss, pss->pss_channel, block,
-                                             offset | RAM_SAVE_FLAG_PAGE));
-        if (async) {
-            qemu_put_buffer_async(file, buf, TARGET_PAGE_SIZE,
-                                  migrate_release_ram() &&
-                                  migration_in_postcopy());
+        if (migrate_mapped_ram()) {
+            qemu_put_buffer_at(file, buf, TARGET_PAGE_SIZE,
+                            block->pages_offset + offset);
+            set_bit(offset >> TARGET_PAGE_BITS, block->file_bmap);
         } else {
-            qemu_put_buffer(file, buf, TARGET_PAGE_SIZE);
+            ram_transferred_add(save_page_header(pss, pss->pss_channel, block,
+                                                offset | RAM_SAVE_FLAG_PAGE));
+            if (async) {
+                qemu_put_buffer_async(file, buf, TARGET_PAGE_SIZE,
+                                    migrate_release_ram() &&
+                                    migration_in_postcopy());
+            } else {
+                qemu_put_buffer(file, buf, TARGET_PAGE_SIZE);
+            }
         }
     }
     ram_transferred_add(TARGET_PAGE_SIZE);
@@ -1837,6 +1848,7 @@ void ram_write_tracking_stop(void)
 
 /**
  * get_queued_page: unqueue a page from the postcopy requests
+ *   High priority pages.
  *
  * Skips pages that are already sent (!dirty)
  *
@@ -3133,7 +3145,11 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
          * I created a 16GB VM, so pc.ram is 16GB.
          * Our focus is pc.ram, since other parts are negligible.
          */
+        uint64_t tmp = 0;
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
+
+            block->pages_offset_shm = tmp;
+            tmp += block->used_length;
 
             qemu_put_byte(f, strlen(block->idstr));
             qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
@@ -3196,12 +3212,18 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 /* shared memory setup.
  * 
  */
-static int ram_save_setup_shm(QEMUFile *f, void *opaque) 
+static int ram_save_setup_shm(QEMUFile *f, void *opaque, void *shm_obj) 
 {
     RAMState **rsp = opaque; // ram_state, check `register_savevm_live`.
     RAMBlock *block;
 
-    // (*rsp)->pss[RAM_CHANNEL_PRECOPY].pss_channel = f; // communication channel.
+    // Initialize the RAMState object.
+    if (ram_init_all(rsp) != 0) {
+        compress_threads_save_cleanup();
+        return -1;
+    }
+
+    (*rsp)->pss[RAM_CHANNEL_PRECOPY].shm_obj = (shm_target *)shm_obj;
     int max_hg_page_size = MAX(qemu_real_host_page_size(), TARGET_PAGE_SIZE);
     assert(max_hg_page_size == 4096);
 
@@ -3209,7 +3231,6 @@ static int ram_save_setup_shm(QEMUFile *f, void *opaque)
         qemu_put_be64(f, ram_bytes_total_with_ignored()
                          | RAM_SAVE_FLAG_MEM_SIZE);
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
-
             qemu_put_byte(f, strlen(block->idstr));
             qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
             qemu_put_be64(f, block->used_length);
@@ -3410,6 +3431,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     rs->last_stage = !migration_in_colo_state();
 
+    puts("checkpoint2");fflush(stdout);
+
     WITH_RCU_READ_LOCK_GUARD() {
         if (!migration_in_postcopy()) {
             migration_bitmap_sync_precopy(rs, true);
@@ -3447,6 +3470,12 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             qemu_file_set_error(f, ret);
             return ret;
         }
+    }
+    puts("checkpoint3");fflush(stdout);
+
+    // shared-memory migration.
+    if (f == NULL) {
+        return 0;
     }
 
     ret = multifd_send_sync_main();

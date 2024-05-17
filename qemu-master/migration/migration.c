@@ -3259,6 +3259,12 @@ typedef enum {
  */
 static MigIterateState migration_iteration_run(MigrationState *s)
 {
+
+    migration_completion(s);
+    return MIG_ITERATE_BREAK;
+
+
+
     uint64_t must_precopy, can_postcopy, pending_size;
     Error *local_err = NULL;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
@@ -3582,60 +3588,6 @@ out: // clean
     return NULL;
 }
 
-
-/* Zezhou: logic of shared memory migration.
- * 
- */
-static void *shm_migration_thread(void *opaque)
-{
-    MigrationState *s = opaque;
-    MigrationThread *thread = NULL;
-    MigThrError thr_error;
-
-    thread = migration_threads_add("shared_memory_migration", qemu_get_thread_id());
-
-    rcu_register_thread();
-    object_ref(OBJECT(s));
-    update_iteration_initial_status(s);
-
-    // send machine header.
-    bql_lock();
-    qemu_savevm_state_header_shm(&s->shm_obj);
-    bql_unlock();
-
-    // setup.
-    bql_lock();
-    qemu_savevm_state_setup_shm(&s->shm_obj);
-    bql_unlock();
-
-    qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
-                               MIGRATION_STATUS_ACTIVE);
-
-    // start pre-copy migration.
-    while (migration_is_active()) {
-        /* Shared memory migration uses another infra.
-         * No need to do rate limiting here.
-         */ 
-
-        sleep(1);
-        puts("Hello world!");
-        // MigIterateState iter_state = migration_iteration_run(s);
-        // if (iter_state == MIG_ITERATE_SKIP) {
-        //     continue;
-        // } else if (iter_state == MIG_ITERATE_BREAK) {
-        //     break;
-        // }
-    }
-
-out: // clean
-    object_unref(OBJECT(s));
-    rcu_unregister_thread();
-    migration_threads_remove(thread);
-    return NULL;
-}
-
-
-
 static void bg_migration_vm_start_bh(void *opaque)
 {
     MigrationState *s = opaque;
@@ -3784,49 +3736,6 @@ fail:
 
     return NULL;
 }
-
-
-
-/* Zezhou: shared memory migration.
- * 
- */
-void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp) 
-{
-    Error *local_err = NULL;
-    uint64_t rate_limit;
-    MigrationState *s = migrate_get_current();
-    assert(s->state == MIGRATION_STATUS_NONE);
-
-    if (!migrate_prepare(s, 0, 0, 0, errp)) {
-        /* Error detected, put into errp */
-        return;
-    }
-    assert(s->state == MIGRATION_STATUS_SETUP);
-
-    // actually I don't know what is this.
-    migrate_error_free(s);
-
-    s->shm_obj.shm_offset = 0;
-    s->shm_obj.shm_ptr = shm_ptr;
-    s->shm_obj.shm_size = shm_size;
-
-    s->expected_downtime = migrate_downtime_limit();
-
-    if (migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP, &local_err)) {
-        goto fail;
-    }
-
-    qemu_thread_create(&s->thread, "shared_memory_migration",
-            shm_migration_thread, s, QEMU_THREAD_JOINABLE);
-    s->migration_thread_running = true;
-    return;
-
-fail:
-    migrate_set_error(s, local_err);
-    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
-    error_report_err(local_err);
-}
-
 
 
 /* asd123www: enable different migration options, like post-copy.
@@ -4031,3 +3940,167 @@ static void register_migration_types(void)
 }
 
 type_init(register_migration_types);
+
+
+
+
+
+
+
+
+
+
+
+
+/* ------------------- shared memory migration start ------------------- */
+
+static int migration_completion_precopy_shm(MigrationState *s,
+                                        int *current_active_state)
+{
+    int ret;
+
+    bql_lock();
+
+    ret = migration_stop_vm(s, RUN_STATE_FINISH_MIGRATE);
+    if (ret < 0) {
+        goto out_unlock;
+    }
+
+    ret = migration_maybe_pause(s, current_active_state,
+                                MIGRATION_STATUS_DEVICE);
+    if (ret < 0) {
+        goto out_unlock;
+    }
+
+    // save the state: cpu registers, interrupts.
+    ret = qemu_savevm_state_complete_precopy_shm();
+out_unlock:
+    bql_unlock();
+    return ret;
+}
+
+static void migration_completion_shm(MigrationState *s)
+{
+    int ret = 0;
+    int current_active_state = s->state;
+
+    if (s->state == MIGRATION_STATUS_ACTIVE) {
+        // code path is here.
+        ret = migration_completion_precopy_shm(s, &current_active_state);
+    } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        assert(false);
+        migration_completion_postcopy(s);
+    } else {
+        ret = -1;
+    }
+
+    if (ret < 0) {
+        goto fail;
+    }
+
+    migration_completion_end(s);
+    return;
+
+fail:
+    migration_completion_failed(s, current_active_state);
+}
+
+/* no precopy, break immediately.
+ */
+static MigIterateState migration_iteration_run_shm(MigrationState *s)
+{
+    migration_completion_shm(s);
+    return MIG_ITERATE_BREAK;
+}
+
+/* Zezhou: logic of shared memory migration.
+ * 
+ */
+static void *shm_migration_thread(void *opaque)
+{
+    MigrationState *s = opaque;
+    MigrationThread *thread = NULL;
+    MigThrError thr_error;
+
+    thread = migration_threads_add("shared_memory_migration", qemu_get_thread_id());
+
+    rcu_register_thread();
+    object_ref(OBJECT(s));
+    update_iteration_initial_status(s);
+
+
+    // send machine header.
+    bql_lock();
+    qemu_savevm_state_header_shm(&s->shm_obj);
+    bql_unlock();
+
+    // setup.
+    bql_lock();
+    qemu_savevm_state_setup_shm(&s->shm_obj);
+    bql_unlock();
+
+    qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
+                               MIGRATION_STATUS_ACTIVE);
+
+    // start pre-copy migration.
+    while (migration_is_active()) {
+        /* Shared memory migration uses another infra.
+         * No need to do rate limiting here.
+         */ 
+        MigIterateState iter_state = migration_iteration_run_shm(s);
+        if (iter_state == MIG_ITERATE_SKIP) {
+            continue;
+        } else if (iter_state == MIG_ITERATE_BREAK) {
+            break;
+        }
+    }
+    
+
+out: // clean
+    object_unref(OBJECT(s));
+    rcu_unregister_thread();
+    migration_threads_remove(thread);
+    return NULL;
+}
+
+/* Zezhou: shared memory migration.
+ * 
+ */
+void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp) 
+{
+    Error *local_err = NULL;
+    uint64_t rate_limit;
+    MigrationState *s = migrate_get_current();
+    assert(s->state == MIGRATION_STATUS_NONE);
+
+    if (!migrate_prepare(s, 0, 0, 0, errp)) {
+        /* Error detected, put into errp */
+        return;
+    }
+    assert(s->state == MIGRATION_STATUS_SETUP);
+
+    // actually I don't know what is this.
+    migrate_error_free(s);
+
+    /* shm_obj initialization */
+    s->shm_obj.shm_offset = 0;
+    s->shm_obj.shm_ptr = shm_ptr;
+    s->shm_obj.shm_size = shm_size;
+    s->shm_obj.ram = shm_ptr + shm_size / 2;
+
+    s->expected_downtime = migrate_downtime_limit();
+
+    if (migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP, &local_err)) {
+        goto fail;
+    }
+
+    qemu_thread_create(&s->thread, "shared_memory_migration",
+            shm_migration_thread, s, QEMU_THREAD_JOINABLE);
+    s->migration_thread_running = true;
+    return;
+
+fail:
+    migrate_set_error(s, local_err);
+    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+    error_report_err(local_err);
+}
