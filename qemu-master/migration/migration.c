@@ -3973,7 +3973,7 @@ static int migration_completion_precopy_shm(MigrationState *s,
     }
 
     // save the state: cpu registers, interrupts.
-    ret = qemu_savevm_state_complete_precopy_shm();
+    ret = qemu_savevm_state_complete_precopy_shm(&s->shm_obj);
 out_unlock:
     bql_unlock();
     return ret;

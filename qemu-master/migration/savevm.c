@@ -3699,26 +3699,39 @@ void qemu_savevm_state_setup_shm(shm_target *shm_obj)
     object_unref(OBJECT(sioc));
 }
 
-int qemu_savevm_state_complete_precopy_shm()
+int qemu_savevm_state_complete_precopy_shm(shm_target *shm_obj)
 {
     int ret;
 
     // save all cpu states.
     cpu_synchronize_all_states();
 
-    // iterable: RAM.
+    uint32_t size = 1024 * 1024;
+    QIOChannelBuffer *sioc = qio_channel_buffer_new(size);
+    QEMUFile *f = qemu_file_new_output(QIO_CHANNEL(sioc));
 
+    // iterable: RAM.
     ret = qemu_savevm_state_complete_precopy_iterable(NULL, false);
     if (ret) {
         return ret;
     }
 
 
+    /* Zezhou: in latency(downtime & total) critical path.
+     *     Around 2327109 ns...
+     */ 
+    uint64_t start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
     // non-iterable: other devices.
-    ret = qemu_savevm_state_complete_precopy_non_iterable(NULL, 0, 1);
+    ret = qemu_savevm_state_complete_precopy_non_iterable(f, 0, 1);
     if (ret) {
         return ret;
     }
+    qemu_fflush(f);
+
+    assert(sioc->usage <= size);
+    shm_put_buffer(shm_obj, sioc->data, sioc->usage);
+    // printf("Elapsed time: %lld ns\n", qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time);
 
     return 0;
 }

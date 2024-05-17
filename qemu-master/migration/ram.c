@@ -1222,9 +1222,7 @@ static int save_normal_page(PageSearchStatus *pss, RAMBlock *block,
 {
     QEMUFile *file = pss->pss_channel;
 
-    printf("save_normal_page: mapped_ram %d\n", migrate_mapped_ram());
-    printf("save_normal_page: shm %d\n", pss->shm_obj != NULL);
-    /* shm_migration: */
+    /* _shm_ */
     if (pss->shm_obj != NULL) {
         memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
                buf, TARGET_PAGE_SIZE);
@@ -2104,9 +2102,10 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
         return 1;
     }
 
-    if (save_zero_page(rs, pss, offset)) {
-        return 1;
-    }
+    // zezhou: delete the zero page optimization.
+    // if (save_zero_page(rs, pss, offset)) {
+    //     return 1;
+    // }
 
     return ram_save_page(rs, pss);
 }
@@ -2361,7 +2360,7 @@ static int ram_find_and_save_block(RAMState *rs)
 
     pss_init(pss, rs->last_seen_block, rs->last_page);
 
-    while (true){
+    while (true) {
         if (!get_queued_page(rs, pss)) {
             /* priority queue empty, so just search for something dirty */
             int res = find_dirty_block(rs, pss);
@@ -3248,6 +3247,9 @@ static int ram_save_setup_shm(QEMUFile *f, void *opaque, void *shm_obj)
         }
     }
     
+    migration_ops = g_malloc0(sizeof(MigrationOps));
+    migration_ops->ram_save_target_page = ram_save_target_page_legacy;
+
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     return qemu_fflush(f);
@@ -3431,7 +3433,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     rs->last_stage = !migration_in_colo_state();
 
-    puts("checkpoint2");fflush(stdout);
 
     WITH_RCU_READ_LOCK_GUARD() {
         if (!migration_in_postcopy()) {
@@ -3471,7 +3472,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             return ret;
         }
     }
-    puts("checkpoint3");fflush(stdout);
 
     // shared-memory migration.
     if (f == NULL) {
