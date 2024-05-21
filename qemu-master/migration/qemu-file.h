@@ -84,4 +84,6 @@ size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
 
 QIOChannel *qemu_file_get_ioc(QEMUFile *file);
 
+void qemu_file_write_hacky(QEMUFile *f, const char *buf, size_t size);
+void print_qemu_file(QEMUFile *f, int i);
 #endif

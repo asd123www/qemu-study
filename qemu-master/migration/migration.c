@@ -783,6 +783,9 @@ process_incoming_migration_co(void *opaque)
     ret = qemu_loadvm_state(mis->from_src_file);
     mis->loadvm_co = NULL;
 
+
+    printf("ret: %d\n", ret);fflush(stdout);
+
     trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
 
     ps = postcopy_state_get();
@@ -4063,6 +4066,18 @@ out: // clean
     return NULL;
 }
 
+/* shm_obj initialization */
+void shm_init(void *shm_ptr, uint64_t shm_size) 
+{
+    MigrationState *s = migrate_get_current();
+
+    /* shm_obj initialization */
+    s->shm_obj.shm_offset = 0;
+    s->shm_obj.shm_ptr = shm_ptr;
+    s->shm_obj.shm_size = shm_size;
+    s->shm_obj.ram = shm_ptr + shm_size / 2;
+}
+
 /* Zezhou: shared memory migration.
  * 
  */
@@ -4082,11 +4097,7 @@ void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp)
     // actually I don't know what is this.
     migrate_error_free(s);
 
-    /* shm_obj initialization */
-    s->shm_obj.shm_offset = 0;
-    s->shm_obj.shm_ptr = shm_ptr;
-    s->shm_obj.shm_size = shm_size;
-    s->shm_obj.ram = shm_ptr + shm_size / 2;
+    shm_init(shm_ptr, shm_size);
 
     s->expected_downtime = migrate_downtime_limit();
 
@@ -4103,4 +4114,121 @@ fail:
     migrate_set_error(s, local_err);
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     error_report_err(local_err);
+}
+
+
+static void coroutine_fn
+process_incoming_migration_shm_co(void *opaque)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyState ps;
+    int ret;
+
+    mis->largest_page_size = qemu_ram_pagesize_largest();
+    assert(mis->largest_page_size == 4096);
+    postcopy_state_set(POSTCOPY_INCOMING_NONE);
+    migrate_set_state(&mis->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_ACTIVE);
+
+
+    // how to create a qemu file and reuse it?
+    // I have a buffer of data, how can I create a qemu file that points to this buffer?
+    // I think I need to create a new QIOChannelBuffer, and then create a QEMUFile from this buffer.
+
+    assert(mis->from_src_file);
+
+    mis->loadvm_co = qemu_coroutine_self();
+    ret = qemu_loadvm_state(mis->from_src_file);
+    printf("ret: %d\n", ret);fflush(stdout);
+    while (1);
+    mis->loadvm_co = NULL;
+
+
+    trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
+
+    ps = postcopy_state_get();
+    trace_process_incoming_migration_co_end(ret, ps);
+    if (ps != POSTCOPY_INCOMING_NONE) {
+        if (ps == POSTCOPY_INCOMING_ADVISE) {
+            /*
+             * Where a migration had postcopy enabled (and thus went to advise)
+             * but managed to complete within the precopy period, we can use
+             * the normal exit.
+             */
+            postcopy_ram_incoming_cleanup(mis);
+        } else if (ret >= 0) {
+            /*
+             * Postcopy was started, cleanup should happen at the end of the
+             * postcopy thread.
+             */
+            trace_process_incoming_migration_co_postcopy_end_main();
+            return;
+        }
+        /* Else if something went wrong then just fall out of the normal exit */
+    }
+
+    if (ret < 0) {
+        MigrationState *s = migrate_get_current();
+
+        if (migrate_has_error(s)) {
+            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+                error_report_err(s->error);
+            }
+        }
+        error_report("load of migration failed: %s", strerror(-ret));
+        goto fail;
+    }
+
+    if (colo_incoming_co() < 0) {
+        goto fail;
+    }
+
+    migration_bh_schedule(process_incoming_migration_bh, mis);
+    return;
+fail:
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_FAILED);
+    qemu_fclose(mis->from_src_file);
+
+    multifd_recv_cleanup();
+    compress_threads_load_cleanup();
+
+    exit(EXIT_FAILURE);
+}
+
+void qmp_migrate_incoming_shm(void *shm_ptr, uint64_t shm_size, Error **errp) 
+{
+    Error *local_err = NULL;
+    static bool once = true;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (!once) {
+        error_setg(errp, "The incoming migration has already been started");
+        return;
+    }
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "'-incoming' was not specified on the command line");
+        return;
+    }
+
+    shm_init(shm_ptr, shm_size);
+
+    //calculate how long this piece of code executes.
+
+    // load queue data into file.
+    uint32_t buf_size = 1024 * 1024;
+    QIOChannelBuffer *bioc = qio_channel_buffer_new(100);
+    mis->from_src_file = qemu_file_new_input(QIO_CHANNEL(bioc));
+    qemu_file_write_hacky(mis->from_src_file, (char *)shm_ptr, buf_size);
+
+    // start shm incoming migration.
+    Coroutine *co = qemu_coroutine_create(process_incoming_migration_shm_co, NULL);
+    qemu_coroutine_enter(co);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    once = false;
 }

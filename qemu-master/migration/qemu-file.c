@@ -35,7 +35,8 @@
 #include "rdma.h"
 #include "io/channel-file.h"
 
-#define IO_BUF_SIZE 32768
+// #define IO_BUF_SIZE 32768 // old
+#define IO_BUF_SIZE 1048576 // new
 #define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
 
 struct QEMUFile {
@@ -942,4 +943,16 @@ int qemu_file_get_to_fd(QEMUFile *f, int fd, size_t size)
     }
 
     return 0;
+}
+
+
+void qemu_file_write_hacky(QEMUFile *f, const char *buf, size_t size) {
+    f->buf_size = size;
+    assert(size <= IO_BUF_SIZE);
+    memcpy(f->buf, buf, size);
+    return;
+}
+
+void print_qemu_file(QEMUFile *f, int i) {
+    printf("checkpoint-%d: %d\n", i, f->buf_index);fflush(stdout);
 }

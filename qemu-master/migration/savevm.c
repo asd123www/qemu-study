@@ -2963,23 +2963,38 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
     }
 
+    print_qemu_file(f, 0);
+
     ret = qemu_loadvm_state_header(f);
     if (ret) {
         return ret;
     }
+    print_qemu_file(f, 1);
 
     if (qemu_loadvm_state_setup(f) != 0) {
         return -EINVAL;
     }
 
+    print_qemu_file(f, 2);
+
     if (migrate_switchover_ack()) {
         qemu_loadvm_state_switchover_ack_needed(mis);
     }
 
+    print_qemu_file(f, 3);
+
     cpu_synchronize_all_pre_loadvm();
 
+
+    print_qemu_file(f, 4);
+
+    // In this function, we load pages in different sections.
+    // So we modified the page format, we need to modify this.
     ret = qemu_loadvm_state_main(f, mis);
     qemu_event_set(&mis->main_thread_load_event);
+
+
+    print_qemu_file(f, 5);
 
     trace_qemu_loadvm_state_post_main(ret);
 
@@ -2991,6 +3006,9 @@ int qemu_loadvm_state(QEMUFile *f)
     if (ret == 0) {
         ret = qemu_file_get_error(f);
     }
+
+
+    print_qemu_file(f, 6);
 
     /*
      * Try to read in the VMDESC section as well, so that dumping tools that

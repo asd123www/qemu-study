@@ -486,6 +486,37 @@ end:
     hmp_handle_error(mon, err);
 }
 
+/* Zezhou: shared-memory migration incoming.
+ */
+void hmp_migrate_incoming_shm(Monitor *mon, const QDict *qdict) 
+{
+    Error *err = NULL;
+    const char *uri = qdict_get_str(qdict, "uri");
+    uint64_t shm_size = qdict_get_int(qdict, "value"); // memory size, GB.
+    shm_size *= 1024ll * 1024 * 1024;
+
+    int shm_fd = shm_open(uri, O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("shm_open"); assert(0);
+        exit(EXIT_FAILURE);
+    }
+    
+    // Map the shared memory object into the process's address space
+    void *shm_ptr = mmap(0, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shm_ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    qmp_migrate_incoming_shm(shm_ptr, shm_size, &err);
+
+end:
+    hmp_handle_error(mon, err);
+}
+
+
+
+
 void hmp_migrate_recover(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;

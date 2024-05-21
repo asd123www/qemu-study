@@ -970,6 +970,22 @@ SRST
   as the ``-incoming`` option).
 ERST
 
+
+{
+        .name       = "migrate_incoming_shm",
+        .args_type  = "uri:s,value:i",
+        .params     = "uri value",
+        .help       = "Continue an incoming migration from an -incoming defer",
+        .cmd        = hmp_migrate_incoming_shm,
+    },
+
+SRST
+``migrate_incoming_shm`` *uri* *value*
+  Continue an incoming migration using the *uri* shared memory object (that has the same syntax
+  as the ``-incoming`` option).
+ERST
+
+
     {
         .name       = "migrate_recover",
         .args_type  = "uri:s",
