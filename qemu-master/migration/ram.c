@@ -4536,6 +4536,48 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
+static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, void *shm_obj)
+{
+    puts("ram_load_shm");
+    return;
+    
+    int ret = 0;
+    static uint64_t seq_iter;
+    /*
+     * If system is running in postcopy mode, page inserts to host memory must
+     * be atomic
+     */
+    bool postcopy_running = postcopy_is_running();
+
+    seq_iter++;
+
+    if (version_id != 4) {
+        return -EINVAL;
+    }
+
+    /*
+     * This RCU critical section can be very long running.
+     * When RCU reclaims in the code start to become numerous,
+     * it will be necessary to reduce the granularity of this
+     * critical section.
+     */
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (postcopy_running) {
+            /*
+             * Note!  Here RAM_CHANNEL_PRECOPY is the precopy channel of
+             * postcopy migration, we have another RAM_CHANNEL_POSTCOPY to
+             * service fast page faults.
+             */
+            ret = ram_load_postcopy(f, RAM_CHANNEL_PRECOPY);
+        } else {
+            ret = ram_load_precopy(f);
+        }
+    }
+    trace_ram_load_complete(ret, seq_iter);
+
+    return ret;
+}
+
 static bool ram_has_postcopy(void *opaque)
 {
     RAMBlock *rb;
@@ -4693,6 +4735,7 @@ void postcopy_preempt_shutdown_file(MigrationState *s)
 
 static SaveVMHandlers savevm_ram_handlers = {
     .save_setup_shm = ram_save_setup_shm, // shared memory setup handler.
+    .load_state_shm = ram_load_shm,
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
     .save_live_complete_postcopy = ram_save_complete,

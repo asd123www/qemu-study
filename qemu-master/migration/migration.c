@@ -4067,15 +4067,13 @@ out: // clean
 }
 
 /* shm_obj initialization */
-void shm_init(void *shm_ptr, uint64_t shm_size) 
+void shm_init(shm_target *shm_obj, void *shm_ptr, uint64_t shm_size) 
 {
-    MigrationState *s = migrate_get_current();
-
     /* shm_obj initialization */
-    s->shm_obj.shm_offset = 0;
-    s->shm_obj.shm_ptr = shm_ptr;
-    s->shm_obj.shm_size = shm_size;
-    s->shm_obj.ram = shm_ptr + shm_size / 2;
+    shm_obj->shm_offset = 0;
+    shm_obj->shm_ptr = shm_ptr;
+    shm_obj->shm_size = shm_size;
+    shm_obj->ram = shm_ptr + shm_size / 2;
 }
 
 /* Zezhou: shared memory migration.
@@ -4097,7 +4095,7 @@ void qmp_shm_migrate(void *shm_ptr, uint64_t shm_size, Error **errp)
     // actually I don't know what is this.
     migrate_error_free(s);
 
-    shm_init(shm_ptr, shm_size);
+    shm_init(&s->shm_obj, shm_ptr, shm_size);
 
     s->expected_downtime = migrate_downtime_limit();
 
@@ -4138,7 +4136,7 @@ process_incoming_migration_shm_co(void *opaque)
     assert(mis->from_src_file);
 
     mis->loadvm_co = qemu_coroutine_self();
-    ret = qemu_loadvm_state(mis->from_src_file);
+    ret = qemu_loadvm_state_shm(mis->from_src_file);
     printf("ret: %d\n", ret);fflush(stdout);
     while (1);
     mis->loadvm_co = NULL;
@@ -4211,8 +4209,7 @@ void qmp_migrate_incoming_shm(void *shm_ptr, uint64_t shm_size, Error **errp)
         return;
     }
 
-    shm_init(shm_ptr, shm_size);
-
+    shm_init(&mis->shm_obj, shm_ptr, shm_size);
     //calculate how long this piece of code executes.
 
     // load queue data into file.

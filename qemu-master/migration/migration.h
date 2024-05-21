@@ -73,6 +73,18 @@ typedef enum {
     PREEMPT_THREAD_QUIT,
 } PreemptThreadStatus;
 
+
+
+// zezhou: shared memory target.
+struct shm_target {
+    uint8_t *shm_ptr;
+    uint64_t shm_size;
+    uint64_t shm_offset;
+    uint8_t *ram;
+};
+typedef struct shm_target shm_target;
+
+
 /* asd123www: State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -232,6 +244,8 @@ struct MigrationIncomingState {
 
     // asd123www_impl: the pid of the controller process.
     pid_t controller_pid;
+    // Zezhou: add shared memory object.
+    shm_target shm_obj;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
@@ -252,16 +266,6 @@ struct MigrationClass {
     /*< private >*/
     DeviceClass parent_class;
 };
-
-
-// zezhou: shared memory target.
-struct shm_target {
-    uint8_t *shm_ptr;
-    uint64_t shm_size;
-    uint64_t shm_offset;
-    uint8_t *ram;
-};
-typedef struct shm_target shm_target;
 
 struct MigrationState {
     /*< private >*/

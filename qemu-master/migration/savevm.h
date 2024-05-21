@@ -77,5 +77,5 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 void qemu_savevm_state_header_shm(shm_target *shm_obj);
 void qemu_savevm_state_setup_shm(shm_target *shm_obj);
 int qemu_savevm_state_complete_precopy_shm(shm_target *shm_obj);
-
+int qemu_loadvm_state_shm(QEMUFile *f);
 #endif

@@ -951,7 +951,10 @@ void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
 
 static int vmstate_load(QEMUFile *f, SaveStateEntry *se)
 {
+    printf("se->idstr: %s\n", se->idstr);
     trace_vmstate_load(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
+    // For `ram`, it's vmsd is null, and other devices is not null.
+    // So we only need to call a customized load_state function for `ram`.
     if (!se->vmsd) {         /* Old style */
         return se->ops->load_state(f, se->opaque, se->load_version_id);
     }
@@ -2690,6 +2693,9 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis,
         return -EINVAL;
     }
 
+    printf("section_id: %d\n", section_id);
+    printf("se->name: %s\n", se->idstr);
+
     if (trace_downtime) {
         start_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
     }
@@ -2879,12 +2885,14 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
 
 int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
 {
+    puts("The entrance of qemu_loadvm_state_main");fflush(stdout);
     uint8_t section_type;
     int ret = 0;
 
 retry:
     while (true) {
         section_type = qemu_get_byte(f);
+        printf("\nsection_type: %d\n", section_type);
 
         ret = qemu_file_get_error_obj_any(f, mis->postcopy_qemufile_dst, NULL);
         if (ret) {
@@ -2923,6 +2931,8 @@ retry:
             goto out;
         }
     }
+
+    puts("-------------------------------");fflush(stdout);
 
 out:
     if (ret < 0) {
@@ -3752,4 +3762,153 @@ int qemu_savevm_state_complete_precopy_shm(shm_target *shm_obj)
     // printf("Elapsed time: %lld ns\n", qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time);
 
     return 0;
+}
+
+
+int qemu_loadvm_state_main_shm(QEMUFile *f, MigrationIncomingState *mis)
+{
+    uint8_t section_type;
+    int ret = 0;
+    
+    section_type = qemu_get_byte(f);
+    assert(section_type == 0x01);
+
+    printf("section_type: %d\n", section_type);
+    ret = qemu_loadvm_section_start_full(f, mis, section_type);
+    if (ret < 0) {
+        goto out;
+    }
+
+    // now we gonna load ram.
+    SaveStateEntry *se;
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (strcmp(se->idstr, "ram") == 0) {
+            break;
+        }
+    }
+    assert(se != NULL && se->section_id == 0x02);
+    assert(se->vmsd == NULL);
+    ret = se->ops->load_state_shm(f, se->opaque, se->load_version_id, (void *)(&mis->shm_obj));
+    if (ret < 0) {
+        error_report("error while loading state section id %d(%s)",
+                     se->section_id, se->idstr);
+        goto out;
+    }
+
+    // load other devices.
+    while (true) {
+        section_type = qemu_get_byte(f);
+        if (section_type == QEMU_VM_EOF) break;
+        assert(section_type == 0x04);   
+        ret = qemu_loadvm_section_start_full(f, mis, section_type);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+
+    return 0;
+
+out:
+    return ret;
+}
+
+int qemu_loadvm_state_shm(QEMUFile *f)
+{
+    puts("qemu_loadvm_state_shm");
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    Error *local_err = NULL;
+    int ret;
+
+    if (qemu_savevm_state_blocked(&local_err)) {
+        error_report_err(local_err);
+        return -EINVAL;
+    }
+
+    print_qemu_file(f, 0);
+
+    ret = qemu_loadvm_state_header(f);
+    if (ret) {
+        return ret;
+    }
+    print_qemu_file(f, 1);
+
+    if (qemu_loadvm_state_setup(f) != 0) {
+        return -EINVAL;
+    }
+
+    print_qemu_file(f, 2);
+
+    if (migrate_switchover_ack()) {
+        qemu_loadvm_state_switchover_ack_needed(mis);
+    }
+
+    print_qemu_file(f, 3);
+
+    cpu_synchronize_all_pre_loadvm();
+
+
+    print_qemu_file(f, 4);
+
+    // In this function, we load pages in different sections.
+    // So we modified the page format, we need to modify this.
+    ret = qemu_loadvm_state_main_shm(f, mis);
+    qemu_event_set(&mis->main_thread_load_event);
+
+    while(1);
+
+    print_qemu_file(f, 5);
+
+    trace_qemu_loadvm_state_post_main(ret);
+
+    if (mis->have_listen_thread) {
+        /* Listen thread still going, can't clean up yet */
+        return ret;
+    }
+
+    if (ret == 0) {
+        ret = qemu_file_get_error(f);
+    }
+
+
+    print_qemu_file(f, 6);
+
+    /*
+     * Try to read in the VMDESC section as well, so that dumping tools that
+     * intercept our migration stream have the chance to see it.
+     */
+
+    /* We've got to be careful; if we don't read the data and just shut the fd
+     * then the sender can error if we close while it's still sending.
+     * We also mustn't read data that isn't there; some transports (RDMA)
+     * will stall waiting for that data when the source has already closed.
+     */
+    if (ret == 0 && should_send_vmdesc()) {
+        uint8_t *buf;
+        uint32_t size;
+        uint8_t  section_type = qemu_get_byte(f);
+
+        if (section_type != QEMU_VM_VMDESCRIPTION) {
+            error_report("Expected vmdescription section, but got %d",
+                         section_type);
+            /*
+             * It doesn't seem worth failing at this point since
+             * we apparently have an otherwise valid VM state
+             */
+        } else {
+            buf = g_malloc(0x1000);
+            size = qemu_get_be32(f);
+
+            while (size > 0) {
+                uint32_t read_chunk = MIN(size, 0x1000);
+                qemu_get_buffer(f, buf, read_chunk);
+                size -= read_chunk;
+            }
+            g_free(buf);
+        }
+    }
+
+    qemu_loadvm_state_cleanup();
+    cpu_synchronize_all_post_init();
+
+    return ret;
 }
