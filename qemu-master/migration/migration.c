@@ -784,8 +784,6 @@ process_incoming_migration_co(void *opaque)
     mis->loadvm_co = NULL;
 
 
-    printf("ret: %d\n", ret);fflush(stdout);
-
     trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
 
     ps = postcopy_state_get();
@@ -3262,12 +3260,6 @@ typedef enum {
  */
 static MigIterateState migration_iteration_run(MigrationState *s)
 {
-
-    migration_completion(s);
-    return MIG_ITERATE_BREAK;
-
-
-
     uint64_t must_precopy, can_postcopy, pending_size;
     Error *local_err = NULL;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
@@ -4132,66 +4124,17 @@ process_incoming_migration_shm_co(void *opaque)
     // how to create a qemu file and reuse it?
     // I have a buffer of data, how can I create a qemu file that points to this buffer?
     // I think I need to create a new QIOChannelBuffer, and then create a QEMUFile from this buffer.
-
+    // shit copilot.
     assert(mis->from_src_file);
 
     mis->loadvm_co = qemu_coroutine_self();
     ret = qemu_loadvm_state_shm(mis->from_src_file);
-    printf("ret: %d\n", ret);fflush(stdout);
-    while (1);
+    assert(ret == 0);
     mis->loadvm_co = NULL;
 
-
-    trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
-
-    ps = postcopy_state_get();
-    trace_process_incoming_migration_co_end(ret, ps);
-    if (ps != POSTCOPY_INCOMING_NONE) {
-        if (ps == POSTCOPY_INCOMING_ADVISE) {
-            /*
-             * Where a migration had postcopy enabled (and thus went to advise)
-             * but managed to complete within the precopy period, we can use
-             * the normal exit.
-             */
-            postcopy_ram_incoming_cleanup(mis);
-        } else if (ret >= 0) {
-            /*
-             * Postcopy was started, cleanup should happen at the end of the
-             * postcopy thread.
-             */
-            trace_process_incoming_migration_co_postcopy_end_main();
-            return;
-        }
-        /* Else if something went wrong then just fall out of the normal exit */
-    }
-
-    if (ret < 0) {
-        MigrationState *s = migrate_get_current();
-
-        if (migrate_has_error(s)) {
-            WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-                error_report_err(s->error);
-            }
-        }
-        error_report("load of migration failed: %s", strerror(-ret));
-        goto fail;
-    }
-
-    if (colo_incoming_co() < 0) {
-        goto fail;
-    }
-
+    // zezhou: seems we need this to resume the VM.
     migration_bh_schedule(process_incoming_migration_bh, mis);
     return;
-fail:
-    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                      MIGRATION_STATUS_FAILED);
-    qemu_fclose(mis->from_src_file);
-
-    multifd_recv_cleanup();
-    compress_threads_load_cleanup();
-
-    exit(EXIT_FAILURE);
 }
 
 void qmp_migrate_incoming_shm(void *shm_ptr, uint64_t shm_size, Error **errp) 
@@ -4206,6 +4149,13 @@ void qmp_migrate_incoming_shm(void *shm_ptr, uint64_t shm_size, Error **errp)
     }
     if (!runstate_check(RUN_STATE_INMIGRATE)) {
         error_setg(errp, "'-incoming' was not specified on the command line");
+        return;
+    }
+
+    /* zezhou: actually I don't know what is yank.
+     *  But if I don't register, the migration will crash.
+     */
+    if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
         return;
     }
 

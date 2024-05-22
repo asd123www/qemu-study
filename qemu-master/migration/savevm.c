@@ -951,7 +951,6 @@ void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
 
 static int vmstate_load(QEMUFile *f, SaveStateEntry *se)
 {
-    printf("se->idstr: %s\n", se->idstr);
     trace_vmstate_load(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
     // For `ram`, it's vmsd is null, and other devices is not null.
     // So we only need to call a customized load_state function for `ram`.
@@ -2693,9 +2692,6 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis,
         return -EINVAL;
     }
 
-    printf("section_id: %d\n", section_id);
-    printf("se->name: %s\n", se->idstr);
-
     if (trace_downtime) {
         start_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
     }
@@ -2885,15 +2881,12 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
 
 int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
 {
-    puts("The entrance of qemu_loadvm_state_main");fflush(stdout);
     uint8_t section_type;
     int ret = 0;
 
 retry:
     while (true) {
         section_type = qemu_get_byte(f);
-        printf("\nsection_type: %d\n", section_type);
-
         ret = qemu_file_get_error_obj_any(f, mis->postcopy_qemufile_dst, NULL);
         if (ret) {
             break;
@@ -2931,8 +2924,6 @@ retry:
             goto out;
         }
     }
-
-    puts("-------------------------------");fflush(stdout);
 
 out:
     if (ret < 0) {
@@ -2973,38 +2964,25 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
     }
 
-    print_qemu_file(f, 0);
-
     ret = qemu_loadvm_state_header(f);
     if (ret) {
         return ret;
     }
-    print_qemu_file(f, 1);
 
     if (qemu_loadvm_state_setup(f) != 0) {
         return -EINVAL;
     }
 
-    print_qemu_file(f, 2);
-
     if (migrate_switchover_ack()) {
         qemu_loadvm_state_switchover_ack_needed(mis);
     }
 
-    print_qemu_file(f, 3);
-
     cpu_synchronize_all_pre_loadvm();
-
-
-    print_qemu_file(f, 4);
 
     // In this function, we load pages in different sections.
     // So we modified the page format, we need to modify this.
     ret = qemu_loadvm_state_main(f, mis);
     qemu_event_set(&mis->main_thread_load_event);
-
-
-    print_qemu_file(f, 5);
 
     trace_qemu_loadvm_state_post_main(ret);
 
@@ -3016,10 +2994,6 @@ int qemu_loadvm_state(QEMUFile *f)
     if (ret == 0) {
         ret = qemu_file_get_error(f);
     }
-
-
-    print_qemu_file(f, 6);
-
     /*
      * Try to read in the VMDESC section as well, so that dumping tools that
      * intercept our migration stream have the chance to see it.
@@ -3773,7 +3747,6 @@ int qemu_loadvm_state_main_shm(QEMUFile *f, MigrationIncomingState *mis)
     section_type = qemu_get_byte(f);
     assert(section_type == 0x01);
 
-    printf("section_type: %d\n", section_type);
     ret = qemu_loadvm_section_start_full(f, mis, section_type);
     if (ret < 0) {
         goto out;
@@ -3814,7 +3787,6 @@ out:
 
 int qemu_loadvm_state_shm(QEMUFile *f)
 {
-    puts("qemu_loadvm_state_shm");
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
     int ret;
@@ -3824,39 +3796,25 @@ int qemu_loadvm_state_shm(QEMUFile *f)
         return -EINVAL;
     }
 
-    print_qemu_file(f, 0);
-
     ret = qemu_loadvm_state_header(f);
     if (ret) {
         return ret;
     }
-    print_qemu_file(f, 1);
 
     if (qemu_loadvm_state_setup(f) != 0) {
         return -EINVAL;
     }
 
-    print_qemu_file(f, 2);
-
     if (migrate_switchover_ack()) {
         qemu_loadvm_state_switchover_ack_needed(mis);
     }
 
-    print_qemu_file(f, 3);
-
     cpu_synchronize_all_pre_loadvm();
-
-
-    print_qemu_file(f, 4);
 
     // In this function, we load pages in different sections.
     // So we modified the page format, we need to modify this.
     ret = qemu_loadvm_state_main_shm(f, mis);
     qemu_event_set(&mis->main_thread_load_event);
-
-    while(1);
-
-    print_qemu_file(f, 5);
 
     trace_qemu_loadvm_state_post_main(ret);
 
@@ -3868,9 +3826,6 @@ int qemu_loadvm_state_shm(QEMUFile *f)
     if (ret == 0) {
         ret = qemu_file_get_error(f);
     }
-
-
-    print_qemu_file(f, 6);
 
     /*
      * Try to read in the VMDESC section as well, so that dumping tools that

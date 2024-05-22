@@ -3144,11 +3144,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
          * I created a 16GB VM, so pc.ram is 16GB.
          * Our focus is pc.ram, since other parts are negligible.
          */
-        uint64_t tmp = 0;
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
-
-            block->pages_offset_shm = tmp;
-            tmp += block->used_length;
 
             qemu_put_byte(f, strlen(block->idstr));
             qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
@@ -3229,7 +3225,13 @@ static int ram_save_setup_shm(QEMUFile *f, void *opaque, void *shm_obj)
     WITH_RCU_READ_LOCK_GUARD() {
         qemu_put_be64(f, ram_bytes_total_with_ignored()
                          | RAM_SAVE_FLAG_MEM_SIZE);
+        // where to write our pages.
+        uint64_t tmp = 0;
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
+            // set the offset of the pages.
+            block->pages_offset_shm = tmp;
+            tmp += block->used_length;
+
             qemu_put_byte(f, strlen(block->idstr));
             qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
             qemu_put_be64(f, block->used_length);
@@ -4536,20 +4538,14 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
-static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, void *shm_obj)
+static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, shm_target *shm_obj)
 {
-    puts("ram_load_shm");
-    return;
-    
     int ret = 0;
-    static uint64_t seq_iter;
     /*
      * If system is running in postcopy mode, page inserts to host memory must
      * be atomic
      */
     bool postcopy_running = postcopy_is_running();
-
-    seq_iter++;
 
     if (version_id != 4) {
         return -EINVAL;
@@ -4570,10 +4566,22 @@ static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, void *shm_obj
              */
             ret = ram_load_postcopy(f, RAM_CHANNEL_PRECOPY);
         } else {
-            ret = ram_load_precopy(f);
+            MigrationIncomingState *mis = migration_incoming_get_current();
+
+            /* enumerate all memory blocks.
+               assume traversing ram blocks is order-preserving with the source. */
+            RAMBlock *block;
+            uint64_t tmp = 0;
+            RAMBLOCK_FOREACH_MIGRATABLE(block) {
+                block->pages_offset_shm = tmp;
+                tmp += block->used_length;
+
+                // load pages in this block.
+                void *host = host_from_ram_block_offset(block, 0);
+                memcpy(host, shm_obj->ram + block->pages_offset_shm, block->used_length);
+            }
         }
     }
-    trace_ram_load_complete(ret, seq_iter);
 
     return ret;
 }
