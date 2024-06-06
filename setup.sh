@@ -1,3 +1,7 @@
+git config --global --add safe.directory '*'
+sudo git submodule init
+sudo git submodule update
+
 sudo apt update
 
 # qemu dependency.
@@ -13,8 +17,6 @@ sudo apt-get install libibverbs-dev libjpeg8-dev libncurses5-dev libnuma-dev -y
 sudo apt-get install librbd-dev librdmacm-dev libsasl2-dev libsdl2-dev libseccomp-dev libsnappy-dev libssh-dev -y
 sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev valgrind xfslibs-dev libnfs-dev libiscsi-dev expect -y
 
-sudo git submodule init
-sudo git submodule update
 cd apps/stress-ng
 sudo make -j 4
 sudo make install
