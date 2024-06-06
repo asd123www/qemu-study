@@ -13,8 +13,10 @@ sudo apt-get install libibverbs-dev libjpeg8-dev libncurses5-dev libnuma-dev -y
 sudo apt-get install librbd-dev librdmacm-dev libsasl2-dev libsdl2-dev libseccomp-dev libsnappy-dev libssh-dev -y
 sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev valgrind xfslibs-dev libnfs-dev libiscsi-dev expect -y
 
+sudo git submodule init
+sudo git submodule update
 cd apps/stress-ng
-sudo make -j
+sudo make -j 4
 sudo make install
 cd ../..
 
@@ -49,11 +51,12 @@ wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
 tar xvf linux-$KERNEL_VER.tar.xz
 cd linux-$KERNEL_VER
 make defconfig
-make kvmconfig
+make kvm_guest.config
 CONFIG_KVM_GUEST=y
 CONFIG_HAVE_KVM=y
 CONFIG_PTP_1588_CLOCK_KVM=y
 make olddefconfig
+./scripts/config -e MEMCG
 make -j
 cd ..
 
