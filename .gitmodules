@@ -1,0 +1,3 @@
+[submodule "apps/stress-ng"]
+	path = apps/stress-ng
+	url = git@github.com:ColinIanKing/stress-ng.git

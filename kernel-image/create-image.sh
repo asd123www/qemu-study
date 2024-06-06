@@ -183,6 +183,8 @@ sudo touch $DIR/root/tcp/Makefile
 cat ../apps/tcp/client.c | sudo tee $DIR/root/tcp/client.c
 cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
 cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
+sudo mkdir -p $DIR/root/stress-ng/
+sudo cp ../apps/stress-ng/stress-ng $DIR/root/stress-ng/
 
 # Add perf support
 if [ $PERF = "true" ]; then

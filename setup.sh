@@ -13,6 +13,10 @@ sudo apt-get install libibverbs-dev libjpeg8-dev libncurses5-dev libnuma-dev -y
 sudo apt-get install librbd-dev librdmacm-dev libsasl2-dev libsdl2-dev libseccomp-dev libsnappy-dev libssh-dev -y
 sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev valgrind xfslibs-dev libnfs-dev libiscsi-dev expect -y
 
+cd apps/stress-ng
+sudo make -j
+sudo make install
+cd ../..
 
 # check kvm support.
 if [ $(egrep -c '(vmx|svm)' /proc/cpuinfo) -gt 0 ]; then
