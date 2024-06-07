@@ -18,6 +18,7 @@ sudo apt-get install librbd-dev librdmacm-dev libsasl2-dev libsdl2-dev libseccom
 sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev valgrind xfslibs-dev libnfs-dev libiscsi-dev expect -y
 
 cd apps/stress-ng
+git checkout tags/V0.12.06
 sudo make -j 4
 sudo make install
 cd ../..
