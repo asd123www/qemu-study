@@ -14,8 +14,10 @@ sudo qemu-system-x86_64 \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-netdev tap,id=eth0,ifname=tap0,script=no,downscript=no \
-		-device virtio-net,netdev=eth0,mac=52:55:00:d1:55:01 \
+		-netdev user,id=net0,hostfwd=tcp:127.0.0.1:10021-:22 \
+		-device e1000,netdev=net0 \
+		-netdev tap,id=ens1f0,ifname=tap0,script=no,downscript=no \
+		-device virtio-net,netdev=ens1f0,mac=52:55:00:d1:55:01 \
 		-monitor unix:qemu-monitor-migration,server,nowait
 ```
 
@@ -31,8 +33,10 @@ sudo qemu-system-x86_64 \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-netdev tap,id=eth0,ifname=tap1,script=no,downscript=no \
-		-device virtio-net,netdev=eth0,mac=52:55:00:d1:55:01 \
+		-netdev user,id=net0,hostfwd=tcp:127.0.0.1:10021-:22 \
+		-device e1000,netdev=net0 \
+		-netdev tap,id=ens1f0,ifname=tap0,script=no,downscript=no \
+		-device virtio-net,netdev=ens1f0,mac=52:55:00:d1:55:01 \
 		-incoming defer \
 		-monitor unix:qemu-monitor-migration,server,nowait
 ```
