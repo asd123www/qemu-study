@@ -10,9 +10,10 @@ sudo qemu-system-x86_64 \
 		-cpu host \
 		-smp 2 \
 		-m 256M \
-		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
+		-kernel ./Linux-jonggyu/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
+		-drive file=/mnt/ramdisk/swapfile,format=raw,if=virtio \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
 		-netdev user,id=net0,hostfwd=tcp:127.0.0.1:10021-:22 \
 		-device e1000,netdev=net0 \
@@ -29,9 +30,10 @@ sudo qemu-system-x86_64 \
 		-cpu host \
 		-smp 2 \
 		-m 256M \
-		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
+		-kernel ./Linux-jonggyu/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
+		-drive file=/mnt/ramdisk/swapfile,format=raw,if=virtio \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
 		-netdev user,id=net0,hostfwd=tcp:127.0.0.1:10021-:22 \
 		-device e1000,netdev=net0 \

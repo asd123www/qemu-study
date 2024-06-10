@@ -48,11 +48,8 @@ cd ..
 sudo apt install libslirp0 -y
 
 # compile Linux code.
-KERNEL_VER=5.10.54
-echo "Use Linux-$KERNEL_VER"
-wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
-tar xvf linux-$KERNEL_VER.tar.xz
-cd linux-$KERNEL_VER
+git clone https://github.com/asd123www/Linux-jonggyu.git
+cd Linux-jonggyu
 make defconfig
 make kvm_guest.config
 CONFIG_KVM_GUEST=y
@@ -60,7 +57,7 @@ CONFIG_HAVE_KVM=y
 CONFIG_PTP_1588_CLOCK_KVM=y
 make olddefconfig
 ./scripts/config -e MEMCG
-make -j
+make -j 8
 cd ..
 
 # creating an image for the kernelPermalink.
