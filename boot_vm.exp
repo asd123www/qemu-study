@@ -32,13 +32,13 @@ expect "root@syzkaller:"
 send "redis-server redis-server.conf\r"
 
 expect "root@syzkaller:"
-send "fish\r"
-
-expect "root@syzkaller:"
 send "mkswap /dev/vda\r"
 
 expect "root@syzkaller:"
 send "swapon /dev/vda\r"
+
+expect "root@syzkaller:"
+send "fish\r"
 
 interact
 

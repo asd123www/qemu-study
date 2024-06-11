@@ -6,7 +6,5 @@ rm -f /proj/xdp-PG0/bullseye.img
 cp bullseye.img /proj/xdp-PG0/
 cd ..
 
-sudo bash scripts/create_swap.sh
-
 chmod +x boot_vm.exp
 ./boot_vm.exp

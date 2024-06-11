@@ -60,6 +60,9 @@ make olddefconfig
 make -j 8
 cd ..
 
+# set the swap space.
+sudo bash scripts/create_swap.sh 1024
+
 # creating an image for the kernelPermalink.
 sudo apt-get install debootstrap
 # cd kernel-image
