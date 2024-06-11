@@ -48,7 +48,7 @@ cd ..
 sudo apt install libslirp0 -y
 
 # compile Linux code.
-git clone https://github.com/asd123www/Linux-jonggyu.git
+git clone https://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@github.com/asd123www/Linux-jonggyu.git
 cd Linux-jonggyu
 make defconfig
 make kvm_guest.config
