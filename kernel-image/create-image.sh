@@ -181,6 +181,7 @@ sudo mkdir -p $DIR/root/tcp/
 sudo touch $DIR/root/tcp/client.c
 sudo touch $DIR/root/tcp/server.c
 sudo touch $DIR/root/tcp/Makefile
+sudo cp ../apps/tcp/setup.sh $DIR/root/
 cat ../apps/tcp/client.c | sudo tee $DIR/root/tcp/client.c
 cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
 cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
