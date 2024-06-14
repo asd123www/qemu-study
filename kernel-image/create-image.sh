@@ -177,11 +177,7 @@ cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 # asd123www: Create the redis server configure file.
 sudo touch $DIR/root/redis-server.conf
 cat ../apps/redis/redis-server.conf | sudo tee $DIR/root/redis-server.conf
-sudo mkdir -p $DIR/root/tcp/
-sudo touch $DIR/root/tcp/client.c
-sudo touch $DIR/root/tcp/server.c
-sudo touch $DIR/root/tcp/Makefile
-sudo cp ../apps/tcp/setup.sh $DIR/root/
+sudo cp -r ../apps/tcp $DIR/root
 cat ../apps/tcp/client.c | sudo tee $DIR/root/tcp/client.c
 cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
 cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
