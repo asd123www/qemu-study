@@ -186,6 +186,7 @@ cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
 cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
 sudo mkdir -p $DIR/root/stress-ng/
 sudo cp ../apps/stress-ng/stress-ng $DIR/root/stress-ng/
+sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
 
 # Add perf support
 if [ $PERF = "true" ]; then

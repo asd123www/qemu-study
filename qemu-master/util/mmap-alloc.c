@@ -28,6 +28,7 @@
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
 #include <linux/magic.h>
+#include <numaif.h>
 #endif
 
 QemuFsType qemu_fd_getfs(int fd)
@@ -206,6 +207,15 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
 
     activated_ptr = mmap(ptr, size, prot, flags | map_sync_flags, fd,
                          map_offset);
+    
+    // zezhou: add numa node binding.
+    if (activated_ptr != MAP_FAILED) {
+        unsigned long nodemask = (1 << 0); // which numa node.
+        if (mbind(activated_ptr, size, MPOL_BIND, &nodemask, 32, 0) != 0) {
+            perror("mbind");
+            exit(EXIT_FAILURE);
+        }
+    }
     if (activated_ptr == MAP_FAILED && map_sync_flags) {
         if (errno == ENOTSUP) {
             char *proc_link = g_strdup_printf("/proc/self/fd/%d", fd);
