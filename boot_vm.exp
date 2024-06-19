@@ -30,8 +30,15 @@ send "ip addr add 10.10.1.100/24 dev eth0\r"
 expect "root@syzkaller:"
 send "redis-server redis-server.conf\r"
 
+
+expect "root@syzkaller:"
+send "git clone https://github.com/ColinIanKing/stress-ng.git\r"
+
 expect "root@syzkaller:"
 send "cd stress-ng\r"
+
+expect "root@syzkaller:"
+send "git checkout tags/V0.16.00\r"
 
 expect "root@syzkaller:"
 send "make -j\r"
