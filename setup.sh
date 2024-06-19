@@ -19,8 +19,8 @@ sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo
 
 cd apps/stress-ng
 git checkout tags/V0.16.00
-sudo make -j 4
-sudo make install
+# sudo make -j 4
+# sudo make install
 cd ../..
 
 # check kvm support.
@@ -48,11 +48,8 @@ cd ..
 sudo apt install libslirp0 -y
 
 # compile Linux code.
-KERNEL_VER=5.10.54
-echo "Use Linux-$KERNEL_VER"
-wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
-tar xvf linux-$KERNEL_VER.tar.xz
-cd linux-$KERNEL_VER
+git clone https://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@github.com/asd123www/Linux-jonggyu.git
+cd Linux-jonggyu
 make defconfig
 make kvm_guest.config
 CONFIG_KVM_GUEST=y
