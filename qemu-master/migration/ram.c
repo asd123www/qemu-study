@@ -919,7 +919,8 @@ static void ramblock_sync_dirty_bitmap(RAMState *rs, RAMBlock *rb)
 {
     uint64_t new_dirty_pages =
         cpu_physical_memory_sync_dirty_bitmap(rb, 0, rb->used_length);
-
+    // printf("ramblock_sync_dirty_bitmap: rb->idstr = %s\n", rb->idstr);
+    // printf("ramblock_sync_dirty_bitmap: new_dirty_pages = %lu\n", new_dirty_pages);
     rs->migration_dirty_pages += new_dirty_pages;
     rs->num_dirty_pages_period += new_dirty_pages;
 }
@@ -3417,6 +3418,74 @@ out:
     return done;
 }
 
+
+/**
+ * ram_save_iterate: iterative stage for migration
+ *
+ * Returns zero to indicate success and negative for error
+ *
+ * @f: QEMUFile where to send the data
+ * @opaque: RAMState pointer
+ */
+static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
+{
+    RAMState **temp = opaque;
+    RAMState *rs = *temp;
+    PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
+    // puts("checkpoint 1");fflush(stdout);
+
+    assert(migration_in_postcopy() == false);
+    bql_lock();
+    WITH_RCU_READ_LOCK_GUARD() {
+        migration_bitmap_sync_precopy(rs, false);
+    }
+    bql_unlock();
+
+
+    // puts("checkpoint 2");fflush(stdout);
+
+    // synchronize the dirty bitmap for each block.
+
+
+    int count = 0;
+    
+    WITH_RCU_READ_LOCK_GUARD() {
+        /* enumerate all memory blocks. */
+        RAMBlock *block;
+        RAMBLOCK_FOREACH_MIGRATABLE(block) {
+            // printf("block: %s\n", block->idstr);fflush(stdout);
+            // enumerate all pages inside the block and check if the dirty bit is true.
+            if (block->bmap) {
+                // printf("block->used_length: %ld\n", block->used_length);fflush(stdout);
+                // printf("block->pages_offset_shm: %ld\n", block->pages_offset_shm);fflush(stdout);
+                unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
+                unsigned long bit = 0;
+                // printf("nbits: %ld\n", nbits);fflush(stdout);
+                while (1) {
+                    bit = find_next_bit(block->bmap, nbits, bit);
+                    if (bit >= nbits) break;
+                    migration_bitmap_clear_dirty(rs, block, bit);
+                    // assert(test_and_clear_bit(bit, block->bmap));
+
+                    // clear this bit.
+
+                    ++count;
+                    ram_addr_t offset = ((ram_addr_t)bit) << TARGET_PAGE_BITS;
+                    memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
+                            block->host + offset, TARGET_PAGE_SIZE);
+                    ++bit;
+                }
+                    // printf("count: %ld\n", count);fflush(stdout);
+                
+                // printf("next bit is: %d", find_next_bit(block->bmap, nbits, 0));
+            }
+        }
+    }
+    // puts("checkpoint 3");fflush(stdout);
+    // printf("\n asd123www: %d pages are dirty.\n", count);
+    return 0;
+}
+
 /**
  * ram_save_complete: function called to send the remaining amount of ram
  *
@@ -4566,7 +4635,7 @@ static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, shm_target *s
              */
             ret = ram_load_postcopy(f, RAM_CHANNEL_PRECOPY);
         } else {
-            MigrationIncomingState *mis = migration_incoming_get_current();
+            // MigrationIncomingState *mis = migration_incoming_get_current();
 
             /* enumerate all memory blocks.
                assume traversing ram blocks is order-preserving with the source. */
@@ -4744,6 +4813,7 @@ void postcopy_preempt_shutdown_file(MigrationState *s)
 static SaveVMHandlers savevm_ram_handlers = {
     .save_setup_shm = ram_save_setup_shm, // shared memory setup handler.
     .load_state_shm = ram_load_shm,
+    .save_live_iterate_shm = ram_save_iterate_shm, // shared memory iterate handler.
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
     .save_live_complete_postcopy = ram_save_complete,

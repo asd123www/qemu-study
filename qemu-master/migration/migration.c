@@ -4004,6 +4004,14 @@ fail:
  */
 static MigIterateState migration_iteration_run_shm(MigrationState *s)
 {
+    puts("\nasd123www: migration_iteration_run_shm");
+    fflush(stdout);
+
+    while (1) {
+        qemu_savevm_state_iterate_shm(s->to_dst_file);
+        // sleep(15);
+    }
+
     migration_completion_shm(s);
     return MIG_ITERATE_BREAK;
 }

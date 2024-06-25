@@ -3867,3 +3867,38 @@ int qemu_loadvm_state_shm(QEMUFile *f)
 
     return ret;
 }
+
+int qemu_savevm_state_iterate_shm(QEMUFile *f)
+{
+    SaveStateEntry *se;
+    bool all_finished = true;
+    int ret;
+
+    trace_savevm_state_iterate();
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->save_live_iterate) {
+            continue;
+        }
+        if (se->ops->is_active &&
+            !se->ops->is_active(se->opaque)) {
+            continue;
+        }
+        if (se->ops->is_active_iterate &&
+            !se->ops->is_active_iterate(se->opaque)) {
+            continue;
+        }
+        
+        // print the device name.
+        ret = se->ops->save_live_iterate_shm(f, se->opaque);
+
+        if (ret < 0) {
+            error_report("failed to save SaveStateEntry with id(name): "
+                         "%d(%s): %d",
+                         se->section_id, se->idstr, ret);
+            return ret;
+        } else if (!ret) {
+            all_finished = false;
+        }
+    }
+    return all_finished;
+}

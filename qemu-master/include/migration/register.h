@@ -182,6 +182,14 @@ typedef struct SaveVMHandlers {
      */
     int (*save_live_iterate)(QEMUFile *f, void *opaque);
 
+
+    /**
+     * @save_live_iterate
+     * 
+     * Zezhou: shared memory version of `save_live_iterate`.
+     */
+    int (*save_live_iterate_shm)(QEMUFile *f, void *opaque);
+
     /* This runs outside the BQL!  */
 
     /**
