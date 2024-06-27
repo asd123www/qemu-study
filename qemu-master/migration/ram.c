@@ -735,6 +735,8 @@ static void pss_find_next_dirty(PageSearchStatus *pss)
     pss->page = find_next_bit(bitmap, size, pss->page);
 }
 
+/* clear [l, r], the length is 262144.
+ */
 static void migration_clear_memory_region_dirty_bitmap(RAMBlock *rb,
                                                        unsigned long page)
 {
@@ -3464,8 +3466,8 @@ static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
                 while (1) {
                     bit = find_next_bit(block->bmap, nbits, bit);
                     if (bit >= nbits) break;
-                    migration_bitmap_clear_dirty(rs, block, bit);
-                    // assert(test_and_clear_bit(bit, block->bmap));
+                    // migration_bitmap_clear_dirty(rs, block, bit);
+                    assert(test_and_clear_bit(bit, block->bmap));
 
                     // clear this bit.
 
@@ -3476,7 +3478,7 @@ static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
                     ++bit;
                 }
                     // printf("count: %ld\n", count);fflush(stdout);
-                
+                memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
                 // printf("next bit is: %d", find_next_bit(block->bmap, nbits, 0));
             }
         }
