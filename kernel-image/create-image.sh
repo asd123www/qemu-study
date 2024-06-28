@@ -12,7 +12,7 @@ set -eux
 
 # Create a minimal Debian distribution in a directory.
 DIR=chroot
-PREINSTALL_PKGS=openssh-server,curl,tar,gcc,vim,htop,fish,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
+PREINSTALL_PKGS=openssh-server,curl,tar,gcc,vim,mpich,libopenmpi-dev,git,htop,fish,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
 
 # If ADD_PACKAGE is not defined as an external environment variable, use our default packages
 if [ -z ${ADD_PACKAGE+x} ]; then
@@ -185,7 +185,7 @@ cat ../apps/tcp/client.c | sudo tee $DIR/root/tcp/client.c
 cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
 cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
 sudo mkdir -p $DIR/root/stress-ng/
-sudo cp ../apps/stress-ng/stress-ng $DIR/root/stress-ng/
+sudo cp -r ../apps/stress-ng/ $DIR/root/
 
 # Add perf support
 if [ $PERF = "true" ]; then

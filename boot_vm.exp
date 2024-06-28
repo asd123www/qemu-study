@@ -26,6 +26,30 @@ expect "root@syzkaller:"
 send "ip addr add 10.10.1.100/24 dev eth0\r"
 
 expect "root@syzkaller:"
+send "cd stress-ng\r"
+
+expect "root@syzkaller:"
+send "make -j\r"
+
+expect "root@syzkaller:"
+send "make install\r"
+
+expect "root@syzkaller:"
+send "cd ..\r"
+
+expect "root@syzkaller:"
+send "git clone https://github.com/asd123www/graph500-mirror.git\r"
+
+expect "root@syzkaller:"
+send "cd graph500-mirror/src\r"
+
+expect "root@syzkaller:"
+send "make\r"
+
+expect "root@syzkaller:"
+send "cd ../..\r"
+
+expect "root@syzkaller:"
 send "redis-server redis-server.conf\r"
 
 expect "root@syzkaller:"
