@@ -3576,6 +3576,51 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     return qemu_fflush(f);
 }
 
+/**
+ * Zezhou: shm version ram_save_complete.
+ */
+static int ram_save_complete_shm(QEMUFile *f, void *opaque)
+{
+    RAMState **temp = opaque;
+    RAMState *rs = *temp;
+    PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        migration_bitmap_sync_precopy(rs, true);
+    }
+
+    int count = 0;
+    WITH_RCU_READ_LOCK_GUARD() {
+        /* enumerate all memory blocks. */
+        RAMBlock *block;
+        RAMBLOCK_FOREACH_MIGRATABLE(block) {
+            // enumerate all pages inside the block and check if the dirty bit is true.
+            if (block->bmap) {
+                unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
+                unsigned long bit = 0;
+                while (1) {
+                    bit = find_next_bit(block->bmap, nbits, bit);
+                    if (bit >= nbits) break;
+                    assert(test_and_clear_bit(bit, block->bmap));
+
+                    // clear this bit.
+
+                    ++count;
+                    ram_addr_t offset = ((ram_addr_t)bit) << TARGET_PAGE_BITS;
+                    memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
+                            block->host + offset, TARGET_PAGE_SIZE);
+                    ++bit;
+                }
+                memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
+            }
+        }
+    }
+
+    printf("final rount copy pages: %d\n", count);
+
+    return 0;
+}
+
 static void ram_state_pending_estimate(void *opaque, uint64_t *must_precopy,
                                        uint64_t *can_postcopy)
 {
@@ -4816,6 +4861,8 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_setup_shm = ram_save_setup_shm, // shared memory setup handler.
     .load_state_shm = ram_load_shm,
     .save_live_iterate_shm = ram_save_iterate_shm, // shared memory iterate handler.
+    .save_live_complete_precopy_shm = ram_save_complete_shm,
+
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
     .save_live_complete_postcopy = ram_save_complete,

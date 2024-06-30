@@ -4007,10 +4007,29 @@ static MigIterateState migration_iteration_run_shm(MigrationState *s)
     puts("\nasd123www: migration_iteration_run_shm");
     fflush(stdout);
 
+
+    int count = 0;
+    // I want to use qemu's clock helper function to calculate time.
+    int64_t start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    uint64_t sum = 0;
+    int size = 10000;
+// printf("25000\n");
     while (1) {
         qemu_savevm_state_iterate_shm(s->to_dst_file);
+        usleep(50000); // 50ms --> 1% degradation in cpu.
+        // usleep(25000);
+
         // sleep(15);
+                ++count;
+        int64_t current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        if (current_time - start_time > 1000 * 15) {
+            break;
+        }
+
     }
+
+    printf("shm_iterations: %d\n", count);fflush(stdout);
 
     migration_completion_shm(s);
     return MIG_ITERATE_BREAK;

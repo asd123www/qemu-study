@@ -1561,6 +1561,44 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
     return 0;
 }
 
+/* Zezhou: shared memory complete precopy.
+ */
+static
+int qemu_savevm_state_complete_precopy_iterable_shm(QEMUFile *f, bool in_postcopy)
+{
+    int64_t start_ts_each, end_ts_each;
+    SaveStateEntry *se;
+    int ret;
+
+    assert(f == NULL);
+    assert(in_postcopy == 0);
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops ||
+            (in_postcopy && se->ops->has_postcopy &&
+             se->ops->has_postcopy(se->opaque)) ||
+            !se->ops->save_live_complete_precopy) {
+            continue;
+        }
+
+        if (se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+
+        ret = se->ops->save_live_complete_precopy_shm(f, se->opaque);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+            return -1;
+        }
+    }
+
+    // trace_vmstate_downtime_checkpoint("src-iterable-saved");
+
+    return 0;
+}
+
 int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                                     bool in_postcopy,
                                                     bool inactivate_disks)
@@ -3713,7 +3751,7 @@ int qemu_savevm_state_complete_precopy_shm(shm_target *shm_obj)
     QEMUFile *f = qemu_file_new_output(QIO_CHANNEL(sioc));
 
     // iterable: RAM.
-    ret = qemu_savevm_state_complete_precopy_iterable(NULL, false);
+    ret = qemu_savevm_state_complete_precopy_iterable_shm(NULL, false);
     if (ret) {
         return ret;
     }

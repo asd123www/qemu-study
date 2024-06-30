@@ -118,6 +118,12 @@ typedef struct SaveVMHandlers {
      * Returns zero to indicate success and negative for error
      */
     int (*save_live_complete_precopy)(QEMUFile *f, void *opaque);
+    
+     /**
+     * @save_live_complete_precopy
+     * Zezhou: shared memory version.
+     */
+    int (*save_live_complete_precopy_shm)(QEMUFile *f, void *opaque);
 
     /* This runs both outside and inside the BQL.  */
 
