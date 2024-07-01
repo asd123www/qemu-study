@@ -83,7 +83,7 @@ struct shm_target {
     uint8_t *ram;
 };
 typedef struct shm_target shm_target;
-
+#define SHM_MIGRATION_QUEUE_SIZE 1048576 // shared memory migration queue size.
 
 /* asd123www: State for the incoming migration */
 struct MigrationIncomingState {

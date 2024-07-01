@@ -3434,8 +3434,8 @@ static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
-    // puts("checkpoint 1");fflush(stdout);
 
+    // synchronize the dirty bitmap for each block.
     assert(migration_in_postcopy() == false);
     bql_lock();
     WITH_RCU_READ_LOCK_GUARD() {
@@ -3443,47 +3443,30 @@ static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
     }
     bql_unlock();
 
-
-    // puts("checkpoint 2");fflush(stdout);
-
-    // synchronize the dirty bitmap for each block.
-
-
     int count = 0;
-    
-    WITH_RCU_READ_LOCK_GUARD() {
-        /* enumerate all memory blocks. */
-        RAMBlock *block;
-        RAMBLOCK_FOREACH_MIGRATABLE(block) {
-            // printf("block: %s\n", block->idstr);fflush(stdout);
-            // enumerate all pages inside the block and check if the dirty bit is true.
-            if (block->bmap) {
-                // printf("block->used_length: %ld\n", block->used_length);fflush(stdout);
-                // printf("block->pages_offset_shm: %ld\n", block->pages_offset_shm);fflush(stdout);
+    WITH_QEMU_LOCK_GUARD(&rs->bitmap_mutex) {
+        WITH_RCU_READ_LOCK_GUARD() {
+            /* enumerate all memory blocks. */
+            RAMBlock *block;
+            RAMBLOCK_FOREACH_MIGRATABLE(block) {
+                assert(block->bmap != NULL);
+                memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
+                // enumerate all pages inside the block and check if the dirty bit is true.
                 unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
                 unsigned long bit = 0;
-                // printf("nbits: %ld\n", nbits);fflush(stdout);
                 while (1) {
                     bit = find_next_bit(block->bmap, nbits, bit);
                     if (bit >= nbits) break;
-                    // migration_bitmap_clear_dirty(rs, block, bit);
                     assert(test_and_clear_bit(bit, block->bmap));
-
-                    // clear this bit.
-
-                    ++count;
                     ram_addr_t offset = ((ram_addr_t)bit) << TARGET_PAGE_BITS;
                     memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
                             block->host + offset, TARGET_PAGE_SIZE);
                     ++bit;
+                    ++count;
                 }
-                    // printf("count: %ld\n", count);fflush(stdout);
-                memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
-                // printf("next bit is: %d", find_next_bit(block->bmap, nbits, 0));
             }
         }
     }
-    // puts("checkpoint 3");fflush(stdout);
     // printf("\n asd123www: %d pages are dirty.\n", count);
     return 0;
 }
@@ -3586,7 +3569,7 @@ static int ram_save_complete_shm(QEMUFile *f, void *opaque)
     PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
 
     WITH_RCU_READ_LOCK_GUARD() {
-        migration_bitmap_sync_precopy(rs, true);
+        migration_bitmap_sync_precopy(rs, false);
     }
 
     int count = 0;
@@ -3594,29 +3577,44 @@ static int ram_save_complete_shm(QEMUFile *f, void *opaque)
         /* enumerate all memory blocks. */
         RAMBlock *block;
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
+            assert(block->bmap != NULL);
+            // must clear the dirty bitmap before copying.
+            memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
             // enumerate all pages inside the block and check if the dirty bit is true.
-            if (block->bmap) {
-                unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
-                unsigned long bit = 0;
-                while (1) {
-                    bit = find_next_bit(block->bmap, nbits, bit);
-                    if (bit >= nbits) break;
-                    assert(test_and_clear_bit(bit, block->bmap));
-
-                    // clear this bit.
-
-                    ++count;
-                    ram_addr_t offset = ((ram_addr_t)bit) << TARGET_PAGE_BITS;
-                    memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
-                            block->host + offset, TARGET_PAGE_SIZE);
-                    ++bit;
-                }
-                memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
+            unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
+            unsigned long bit = 0;
+            while (1) {
+                bit = find_next_bit(block->bmap, nbits, bit);
+                if (bit >= nbits) break;
+                assert(test_and_clear_bit(bit, block->bmap));
+                
+                ram_addr_t offset = ((ram_addr_t)bit) << TARGET_PAGE_BITS;
+                memcpy(pss->shm_obj->ram + block->pages_offset_shm + offset, 
+                        block->host + offset, TARGET_PAGE_SIZE);
+                ++bit;
+                ++count;
             }
         }
     }
 
-    printf("final rount copy pages: %d\n", count);
+    printf("final rount copy pages: %d\n", count);fflush(stdout);
+
+    /* 
+    // check the correctness of memory blocks.
+    RAMBlock *block;
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        // memcpy(pss->shm_obj->ram + block->pages_offset_shm, block->host, block->used_length);
+        for(long long i = 0; i < block->used_length; ++i) {
+            uint8_t a = *(char *)(pss->shm_obj->ram + block->pages_offset_shm + i);
+            uint8_t b = *(char *)(block->host + i);
+            if (a != b) {
+                printf("error block: %s, page #: %lld\n", block->idstr, i);fflush(stdout);
+                assert(false);
+            }
+        }
+    }
+    puts("You succeed!");fflush(stdout);
+    */
 
     return 0;
 }

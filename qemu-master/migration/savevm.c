@@ -3810,7 +3810,7 @@ int qemu_loadvm_state_main_shm(QEMUFile *f, MigrationIncomingState *mis)
     while (true) {
         section_type = qemu_get_byte(f);
         if (section_type == QEMU_VM_EOF) break;
-        assert(section_type == 0x04);   
+        assert(section_type == 0x04);
         ret = qemu_loadvm_section_start_full(f, mis, section_type);
         if (ret < 0) {
             goto out;

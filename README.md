@@ -50,3 +50,5 @@ Because we need to profile the effect of live migration, we should try to keep t
 ## QEMU concepts
 
 When I was studying the `socket_start_outgoing_migration` function, I found the control flow would go back to the entrance of migration and exit. QEMU will invoke `socket_outgoing_migration` after building a connection with the destination. This reminded me of event-driven programming. Check this [blog](https://blog.vmsplice.net/2020/08/qemu-internals-event-loops.html) for more.
+
+Warning: if you want to do VM migration inside one server, you should disable port forwarding!

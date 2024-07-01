@@ -894,7 +894,6 @@ void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
         perror("mmap");
         exit(EXIT_FAILURE);
     }
-    memset(shm_ptr, 0, shm_size);
 
     // migrate via shared memory.
     qmp_shm_migrate(shm_ptr, shm_size, &err);

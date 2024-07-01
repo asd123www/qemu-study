@@ -3969,6 +3969,7 @@ static int migration_completion_precopy_shm(MigrationState *s,
 
     // save the state: cpu registers, interrupts.
     ret = qemu_savevm_state_complete_precopy_shm(&s->shm_obj);
+    assert(s->shm_obj.shm_offset < SHM_MIGRATION_QUEUE_SIZE);
 out_unlock:
     bql_unlock();
     return ret;
@@ -4007,21 +4008,14 @@ static MigIterateState migration_iteration_run_shm(MigrationState *s)
     puts("\nasd123www: migration_iteration_run_shm");
     fflush(stdout);
 
-
     int count = 0;
-    // I want to use qemu's clock helper function to calculate time.
     int64_t start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     uint64_t sum = 0;
-    int size = 10000;
-// printf("25000\n");
     while (1) {
         qemu_savevm_state_iterate_shm(s->to_dst_file);
-        usleep(50000); // 50ms --> 1% degradation in cpu.
-        // usleep(25000);
-
-        // sleep(15);
-                ++count;
+        // usleep(50000); // 50ms --> 1% degradation in cpu.
+        ++count;
         int64_t current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         if (current_time - start_time > 1000 * 15) {
             break;
@@ -4029,7 +4023,7 @@ static MigIterateState migration_iteration_run_shm(MigrationState *s)
 
     }
 
-    printf("shm_iterations: %d\n", count);fflush(stdout);
+    printf("\nshm_iterations: %d\n", count);fflush(stdout);
 
     migration_completion_shm(s);
     return MIG_ITERATE_BREAK;
@@ -4092,7 +4086,7 @@ void shm_init(shm_target *shm_obj, void *shm_ptr, uint64_t shm_size)
     shm_obj->shm_offset = 0;
     shm_obj->shm_ptr = shm_ptr;
     shm_obj->shm_size = shm_size;
-    shm_obj->ram = shm_ptr + shm_size / 2;
+    shm_obj->ram = shm_ptr + SHM_MIGRATION_QUEUE_SIZE;
 }
 
 /* Zezhou: shared memory migration.
