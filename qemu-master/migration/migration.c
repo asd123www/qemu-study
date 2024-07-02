@@ -4020,7 +4020,6 @@ static MigIterateState migration_iteration_run_shm(MigrationState *s)
         if (current_time - start_time > 1000 * 15) {
             break;
         }
-
     }
 
     printf("\nshm_iterations: %d\n", count);fflush(stdout);

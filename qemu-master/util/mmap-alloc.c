@@ -204,8 +204,25 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
         map_sync_flags = MAP_SYNC | MAP_SHARED_VALIDATE;
     }
 
-    activated_ptr = mmap(ptr, size, prot, flags | map_sync_flags, fd,
+    int shm_fd = shm_open("/my_shared_memory", O_RDWR, 0666);
+    if (shm_fd == -1 || size < 1000000) {
+        // QEMU's logic.
+        activated_ptr = mmap(ptr, size, prot, flags | map_sync_flags, fd,
                          map_offset);
+    } else {
+        static uint64_t prefix_len = 0;
+        printf("memory chunk size: %lld\n", size);
+        // Map the shared memory object into the process's address space
+        void *shm_ptr = mmap(0, 10ll * 1024 * 1024 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        if (shm_ptr == MAP_FAILED) {
+            perror("mmap");
+            exit(EXIT_FAILURE);
+        }
+
+        activated_ptr = (char *)shm_ptr + 1048576 + prefix_len;
+        prefix_len += size;
+    }
+
     if (activated_ptr == MAP_FAILED && map_sync_flags) {
         if (errno == ENOTSUP) {
             char *proc_link = g_strdup_printf("/proc/self/fd/%d", fd);

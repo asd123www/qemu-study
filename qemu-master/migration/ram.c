@@ -4690,9 +4690,13 @@ static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, shm_target *s
                 block->pages_offset_shm = tmp;
                 tmp += block->used_length;
 
+                // we directly map those pages into ramblock->host.
+                if (block->used_length > 1000000) continue;
+
                 // load pages in this block.
                 void *host = host_from_ram_block_offset(block, 0);
                 memcpy(host, shm_obj->ram + block->pages_offset_shm, block->used_length);
+                // block->host=shm_obj->ram + block->pages_offset_shm;
             }
         }
     }
