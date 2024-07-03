@@ -906,6 +906,14 @@ void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
     return;
 }
 
+/* Zezhou: shm_migrate_switchover.
+ */ 
+void hmp_shm_migrate_switchover(Monitor *mon, const QDict *qdict)
+{
+    qmp_shm_migrate_switchover(NULL);
+    return;
+}
+
 
 
 void migrate_set_capability_completion(ReadLineState *rs, int nb_args,

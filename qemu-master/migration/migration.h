@@ -488,6 +488,8 @@ struct MigrationState {
 
     // Zezhou: add shared memory object.
     shm_target shm_obj;
+    // Zezhou: atomic switchover signal.
+    bool atomic_switchover;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

@@ -86,6 +86,7 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
                        Error **errp);
 void hmp_migrate(Monitor *mon, const QDict *qdict);
 void hmp_shm_migrate(Monitor *mon, const QDict *qdict);
+void hmp_shm_migrate_switchover(Monitor *mon, const QDict *qdict);
 void hmp_device_add(Monitor *mon, const QDict *qdict);
 void hmp_device_del(Monitor *mon, const QDict *qdict);
 void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict);

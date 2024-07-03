@@ -4008,6 +4008,8 @@ static MigIterateState migration_iteration_run_shm(MigrationState *s)
     puts("\nasd123www: migration_iteration_run_shm");
     fflush(stdout);
 
+    qatomic_set(&s->atomic_switchover, false);
+
     int count = 0;
     int64_t start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
@@ -4016,8 +4018,8 @@ static MigIterateState migration_iteration_run_shm(MigrationState *s)
         qemu_savevm_state_iterate_shm(s->to_dst_file);
         // usleep(50000); // 50ms --> 1% degradation in cpu.
         ++count;
-        int64_t current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-        if (current_time - start_time > 1000 * 15) {
+        if (qatomic_read(&s->atomic_switchover)) {
+            // puts("asd123www: We should quit now!");
             break;
         }
     }
@@ -4124,6 +4126,19 @@ fail:
     migrate_set_error(s, local_err);
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     error_report_err(local_err);
+}
+
+/* Zezhou: switchover to destination.
+ */
+void qmp_shm_migrate_switchover() 
+{
+    MigrationState *s = migrate_get_current();
+    assert(s->state == MIGRATION_STATUS_ACTIVE);
+
+    // atomically set s->atomic_switchover to true.
+    qatomic_set(&s->atomic_switchover, true);
+
+    return;
 }
 
 

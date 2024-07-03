@@ -4665,6 +4665,9 @@ static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, shm_target *s
         return -EINVAL;
     }
 
+
+    uint64_t start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
     /*
      * This RCU critical section can be very long running.
      * When RCU reclaims in the code start to become numerous,
@@ -4700,6 +4703,8 @@ static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, shm_target *s
             }
         }
     }
+
+    printf("asd123www: shm load time: %llu\n", qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time);
 
     return ret;
 }

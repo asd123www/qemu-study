@@ -8,7 +8,7 @@ spawn sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-cpu host \
 		-smp 4 \
-		-m 4G \
+		-m 9G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \

@@ -1044,8 +1044,21 @@ ERST
         .name       = "shm_migrate",
         .args_type  = "uri:s,value:i",
         .params     = "uri value",
-        .help       = "VM migration via shared memory, path & memory size GB",
+        .help       = "Start pre-copy, writing pages into shared memory, path & memory size GB",
         .cmd        = hmp_shm_migrate,
+    },
+
+SRST
+``shm_migrate_switchover`` *capability* *state*
+  EMpower: fast VM migration via shared memory.
+ERST
+
+    {
+        .name       = "shm_migrate_switchover",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Destination was selected, stop execution on src and switchover to dest.",
+        .cmd        = hmp_shm_migrate_switchover,
     },
 
 SRST
