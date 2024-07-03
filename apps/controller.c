@@ -213,7 +213,7 @@ void dst_main() {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
     }
-    
+
     connfd = listen_wrapper(local_ip, dst_control_port);
 
     if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
@@ -286,7 +286,119 @@ void backup_main() {
     }
 }
 
-int main() {
+
+void write_to_file(int fd, char *data) {
+    uint32_t write_len = write(fd, data, strlen(data));
+    assert(write_len == strlen(data));
+}
+void read_from_file(int fd, uint32_t len, char *data) {
+    uint32_t read_len;
+    while (1) {
+        read_len = read(fd, data, len);
+        if (read_len) break;
+    }
+    assert(read_len == len);
+}
+
+void signal_handler_shm_src(int signal) {
+    if (signal == SIGUSR1) {
+        printf("shm_src: VM image is complete!\n");
+        uint32_t write_len = write(connfd, "complete_vm_image", sizeof("complete_vm_image"));
+        assert(write_len == sizeof("complete_vm_image"));
+    }
+}
+void shm_src_main() {
+    printf("Hello form the shm_source!\n");
+    FILE *pid_file = fopen("./src_controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
+
+    // build connection with `backup`.
+    connfd = listen_wrapper(src_ip, src_control_port);
+
+    bzero(buff, DATA_LEN);
+    read_from_file(connfd, sizeof("shm_migrate"), buff);
+    assert(strcmp(buff, "shm_migrate") == 0);
+    execute_wrapper("echo \"shm_migrate /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+
+    if (signal(SIGUSR1, signal_handler_shm_src) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
+
+    read_from_file(connfd, sizeof("shm_migrate_switchover"), buff);
+    assert(strcmp(buff, "shm_migrate_switchover") == 0);
+    execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+}
+
+void signal_handler_shm_dst(int signal) {
+    if (signal == SIGUSR1) {
+        printf("shm_dst: Loaded VM from shm!\n");
+        uint32_t write_len = write(connfd, "switchover_finished", sizeof("switchover_finished"));
+        assert(write_len == sizeof("switchover_finished"));
+    }
+}
+void shm_dst_main() {
+    printf("Hello form the shm_destination!\n");
+    FILE *pid_file = fopen("./dst_controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
+
+    // build connection with `backup`.
+    connfd = listen_wrapper(dst_ip, dst_control_port);
+
+    if (signal(SIGUSR1, signal_handler_shm_dst) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
+
+    bzero(buff, DATA_LEN);
+    read_from_file(connfd, sizeof("shm_load_vm_image"), buff);
+    assert(strcmp(buff, "shm_load_vm_image") == 0);
+    execute_wrapper("echo \"migrate_incoming_shm /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
+}
+
+// simulate a control plane.
+void shm_backup_main() {
+    printf("Hello form the shm_backup!\n");
+    srcfd = connect_wrapper(src_ip, src_control_port);
+    dstfd = connect_wrapper(dst_ip, dst_control_port);
+    char data[100] = {0};
+
+    write_to_file(srcfd, "shm_migrate");
+    sleep(3);
+    // compute the time duration.
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    write_to_file(srcfd, "shm_migrate_switchover");
+    memset(data, 0, sizeof(data));
+    read_from_file(srcfd, sizeof("complete_vm_image"), data);
+    assert(strcmp(data, "complete_vm_image") == 0);
+
+    write_to_file(dstfd, "shm_load_vm_image");
+    memset(data, 0, sizeof(data));
+    read_from_file(dstfd, sizeof("switchover_finished"), data);
+    assert(strcmp(data, "switchover_finished") == 0);
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    printf("durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+}
+
+int main(int argc, char *argv[]) {
+    // read machine name: `src`, `dst`, or `client`.
+    if (argc < 3) {
+        printf("Usage: %s <migration mode: `shm`, or `normal`> <machine type: `src`, `dst`, or `backup`>\n", argv[0]);
+        return 1;
+    }
+    printf("Migration Mode: %s\n", argv[1]);
+    printf("Machine type: %s\n", argv[2]);
+
+
     // read the config file.
     get_config_value("NIC_NAME", iface);
     get_config_value("SRC_IP", src_ip);
@@ -300,17 +412,29 @@ int main() {
 
     get_local_addr(iface, local_ip);
 
-    if (strcmp(local_ip, src_ip) == 0) {
-        src_main();
-
-    } else if (strcmp(local_ip, dst_ip) == 0) {
-        dst_main();
+    // migration mode.
+    if (strcmp(argv[1], "shm") == 0) {
+        if (strcmp(argv[2], "src") == 0) {
+            shm_src_main();
+        } else if (strcmp(argv[2], "dst") == 0) {
+            // shm_dst_main();
+        } else {
+            assert(strcmp(argv[2], "backup") == 0);
+            shm_backup_main();
+        }
 
     } else {
-        assert(strcmp(local_ip, backup_ip) == 0);
-        backup_main();
-
+        assert(strcmp(argv[1], "normal") == 0);
+        if (strcmp(argv[2], "src") == 0) {
+            src_main();
+        } else if (strcmp(argv[2], "dst") == 0) {
+            dst_main();
+        } else {
+            assert(strcmp(argv[2], "backup") == 0);
+            backup_main();
+        }
     }
+
 
     return 0;
 }

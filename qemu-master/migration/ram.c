@@ -4703,8 +4703,16 @@ static int ram_load_shm(QEMUFile *f, void *opaque, int version_id, shm_target *s
             }
         }
     }
+    
+    // Zezhou: finished loading all the memory blocks, now we can signal the controller.
+    pid_t controller_pid;
+    FILE *pid_file = fopen("./dst_controller.pid", "r");
+    assert(pid_file != NULL);
+    fscanf(pid_file, "%d", &controller_pid);
+    fclose(pid_file);
+    assert(kill(controller_pid, SIGUSR1) == 0);
 
-    printf("asd123www: shm load time: %llu\n", qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time);
+    printf("asd123www: shm load time: %llu, and we noticed the controller.\n", qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time);
 
     return ret;
 }

@@ -3994,6 +3994,14 @@ static void migration_completion_shm(MigrationState *s)
         goto fail;
     }
 
+    // Zezhou: the image in shm is complete, signal the controller.
+    pid_t controller_pid;
+    FILE *pid_file = fopen("./src_controller.pid", "r");
+    assert(pid_file != NULL);
+    fscanf(pid_file, "%d", &controller_pid);
+    fclose(pid_file);
+    assert(kill(controller_pid, SIGUSR1) == 0);
+
     migration_completion_end(s);
     return;
 
