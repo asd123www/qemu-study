@@ -164,6 +164,7 @@ char iface[IP_LEN], local_ip[IP_LEN];
 char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
 char buff[DATA_LEN];
+struct timespec start, end;
 
 char startString[15] = "start migration";
 char endString[15] =   "ended migration";
@@ -292,19 +293,20 @@ void write_to_file(int fd, char *data) {
     assert(write_len == strlen(data));
 }
 void read_from_file(int fd, uint32_t len, char *data) {
-    uint32_t read_len;
+    uint32_t read_len = 0;
     while (1) {
         read_len = read(fd, data, len);
         if (read_len) break;
     }
-    assert(read_len == len);
+    assert(read_len == len - 1);
 }
 
 void signal_handler_shm_src(int signal) {
     if (signal == SIGUSR1) {
-        printf("shm_src: VM image is complete!\n");
-        uint32_t write_len = write(connfd, "complete_vm_image", sizeof("complete_vm_image"));
-        assert(write_len == sizeof("complete_vm_image"));
+        // printf("shm_src: VM image is complete!\n");
+        write_to_file(connfd, "complete_vm_image");
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        printf("src complete VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);   
     }
 }
 void shm_src_main() {
@@ -314,6 +316,8 @@ void shm_src_main() {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
     }
+
+    execute_wrapper("sudo rm /dev/shm/my_shared_memory");
 
     // build connection with `backup`.
     connfd = listen_wrapper(src_ip, src_control_port);
@@ -330,14 +334,20 @@ void shm_src_main() {
 
     read_from_file(connfd, sizeof("shm_migrate_switchover"), buff);
     assert(strcmp(buff, "shm_migrate_switchover") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &start);
     execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+
+    while(1) {
+        sleep(1);
+    }
 }
 
 void signal_handler_shm_dst(int signal) {
     if (signal == SIGUSR1) {
-        printf("shm_dst: Loaded VM from shm!\n");
-        uint32_t write_len = write(connfd, "switchover_finished", sizeof("switchover_finished"));
-        assert(write_len == sizeof("switchover_finished"));
+        // printf("shm_dst: Loaded VM from shm!\n");
+        write_to_file(connfd, "switchover_finished");
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        printf("dst load VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
     }
 }
 void shm_dst_main() {
@@ -359,7 +369,12 @@ void shm_dst_main() {
     bzero(buff, DATA_LEN);
     read_from_file(connfd, sizeof("shm_load_vm_image"), buff);
     assert(strcmp(buff, "shm_load_vm_image") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &start);
     execute_wrapper("echo \"migrate_incoming_shm /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
+
+    while (1) {
+        sleep(1);
+    }
 }
 
 // simulate a control plane.
@@ -370,15 +385,17 @@ void shm_backup_main() {
     char data[100] = {0};
 
     write_to_file(srcfd, "shm_migrate");
-    sleep(3);
-    // compute the time duration.
-    struct timespec start, end;
+    sleep(10);
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     write_to_file(srcfd, "shm_migrate_switchover");
     memset(data, 0, sizeof(data));
     read_from_file(srcfd, sizeof("complete_vm_image"), data);
     assert(strcmp(data, "complete_vm_image") == 0);
+
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    printf("durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
 
     write_to_file(dstfd, "shm_load_vm_image");
     memset(data, 0, sizeof(data));
@@ -417,7 +434,7 @@ int main(int argc, char *argv[]) {
         if (strcmp(argv[2], "src") == 0) {
             shm_src_main();
         } else if (strcmp(argv[2], "dst") == 0) {
-            // shm_dst_main();
+            shm_dst_main();
         } else {
             assert(strcmp(argv[2], "backup") == 0);
             shm_backup_main();

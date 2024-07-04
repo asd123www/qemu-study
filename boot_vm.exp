@@ -17,7 +17,7 @@ spawn sudo qemu-system-x86_64 \
 		-device e1000,netdev=net0 \
 		-netdev tap,id=ens1f0,ifname=tap0,script=no,downscript=no \
 		-device virtio-net,netdev=ens1f0,mac=52:55:00:d1:55:01 \
-		-monitor unix:qemu-monitor-migration,server,nowait
+		-monitor unix:qemu-monitor-migration-src,server,nowait
 
 #Login process
 expect "syzkaller login: "
