@@ -306,7 +306,8 @@ void signal_handler_shm_src(int signal) {
         // printf("shm_src: VM image is complete!\n");
         write_to_file(connfd, "complete_vm_image");
         clock_gettime(CLOCK_MONOTONIC, &end);
-        printf("src complete VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);   
+        printf("src complete VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+        execute_wrapper("echo \"q\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");  
     }
 }
 void shm_src_main() {

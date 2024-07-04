@@ -3579,7 +3579,7 @@ static int ram_save_complete_shm(QEMUFile *f, void *opaque)
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
             assert(block->bmap != NULL);
             // must clear the dirty bitmap before copying.
-            memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
+            // memory_region_clear_dirty_bitmap(block->mr, 0, block->used_length);
             // enumerate all pages inside the block and check if the dirty bit is true.
             unsigned long nbits = block->used_length >> TARGET_PAGE_BITS;
             unsigned long bit = 0;
