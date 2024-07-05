@@ -125,6 +125,7 @@ int connect_wrapper(char *addr, char *port) {
     // Specify the server address
     bzero(&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET; // Address family
+    // printf("%s:%s\n", addr, port);
     server_addr.sin_port = htons(atoi(port)); // Port number, converted to network byte order
     server_addr.sin_addr.s_addr = inet_addr(addr); // Server IP address
 
@@ -155,7 +156,7 @@ int connect_wrapper(char *addr, char *port) {
  */
 
 #define IP_LEN 16
-#define PORT_LEN 6
+#define PORT_LEN 20
 #define DATA_LEN 1024
 
 int connfd, srcfd, dstfd;

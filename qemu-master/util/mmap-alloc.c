@@ -215,9 +215,9 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
         if (size < 3000000) {
             activated_ptr = mmap(ptr, size, prot, flags | map_sync_flags, fd,
                          map_offset);
-            // Zezhou: add numa node binding.
+            // Zezhou: add numa_node_binding.
             if (activated_ptr != MAP_FAILED) {
-                unsigned long nodemask = (1 << 0); // which numa node.
+                unsigned long nodemask = (1 << 1); // which numa node.
                 if (mbind(activated_ptr, size, MPOL_BIND, &nodemask, 32, 0) != 0) {
                     perror("mbind");
                     exit(EXIT_FAILURE);

@@ -37,6 +37,8 @@
 #include "options.h"
 #include "migration.h"
 
+#include <numaif.h>
+
 static void migration_global_dump(Monitor *mon)
 {
     MigrationState *ms = migrate_get_current();
@@ -893,6 +895,12 @@ void hmp_shm_migrate(Monitor *mon, const QDict *qdict)
     if (shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
+    }    
+    
+    unsigned long nodemask = 1 << 1; // numa_node_binding.
+    if (mbind(shm_ptr, shm_size, MPOL_BIND, &nodemask, sizeof(nodemask) * 8, 0) != 0) {
+        perror("mbind");
+        return 1;
     }
 
     // migrate via shared memory.
