@@ -8,8 +8,8 @@ The experiment is based on the `xl170` machine in Cloudlab with `kernel 5.4.0-16
 sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-cpu host \
-		-smp 2 \
-		-m 256M \
+		-smp 4 \
+		-m 9G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
@@ -18,7 +18,7 @@ sudo qemu-system-x86_64 \
 		-device e1000,netdev=net0 \
 		-netdev tap,id=ens1f0,ifname=tap0,script=no,downscript=no \
 		-device virtio-net,netdev=ens1f0,mac=52:55:00:d1:55:01 \
-		-monitor unix:qemu-monitor-migration,server,nowait
+		-monitor unix:qemu-monitor-migration-src,server,nowait
 ```
 
 The `-monitor` option creates a Unix socket file for further monitoring the VM. You can connect to the VM monitor via `sudo socat stdio unix-connect:qemu-monitor-migration`. Check [this](https://unix.stackexchange.com/questions/426652/connect-to-running-qemu-instance-with-qemu-monitor) for more details. Then you can boot up a **same** Linux kernel waiting for migration by:
@@ -27,18 +27,16 @@ The `-monitor` option creates a Unix socket file for further monitoring the VM. 
 sudo qemu-system-x86_64 \
 		--enable-kvm \
 		-cpu host \
-		-smp 2 \
-		-m 256M \
+		-smp 4 \
+		-m 9G \
 		-kernel ./linux-5.10.54/arch/x86_64/boot/bzImage \
 		-nographic -serial mon:stdio \
 		-drive file=/proj/xdp-PG0/bullseye.img,format=raw \
 		-append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
-		-netdev user,id=net0,hostfwd=tcp:127.0.0.1:10021-:22 \
-		-device e1000,netdev=net0 \
-		-netdev tap,id=ens1f0,ifname=tap0,script=no,downscript=no \
+		-netdev tap,id=ens1f0,ifname=tap1,script=no,downscript=no \
 		-device virtio-net,netdev=ens1f0,mac=52:55:00:d1:55:01 \
 		-incoming defer \
-		-monitor unix:qemu-monitor-migration,server,nowait
+		-monitor unix:qemu-monitor-migration-dst,server,nowait
 ```
 
 The `-incoming` option specifies the listening TCP port. I didn't explore other transport protocols. 

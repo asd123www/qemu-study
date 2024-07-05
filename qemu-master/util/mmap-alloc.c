@@ -28,6 +28,7 @@
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
 #include <linux/magic.h>
+#include <numaif.h>
 #endif
 
 QemuFsType qemu_fd_getfs(int fd)
@@ -205,22 +206,36 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
     }
 
     int shm_fd = shm_open("/my_shared_memory", O_RDWR, 0666);
-    if (shm_fd == -1 || size < 1000000) {
+    if (shm_fd == -1) {
         // QEMU's logic.
         activated_ptr = mmap(ptr, size, prot, flags | map_sync_flags, fd,
                          map_offset);
     } else {
-        static uint64_t prefix_len = 0;
-        printf("memory chunk size: %lld\n", size);
-        // Map the shared memory object into the process's address space
-        void *shm_ptr = mmap(0, 10ll * 1024 * 1024 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-        if (shm_ptr == MAP_FAILED) {
-            perror("mmap");
-            exit(EXIT_FAILURE);
-        }
+        // Zezhou: very hacky way...
+        if (size < 3000000) {
+            activated_ptr = mmap(ptr, size, prot, flags | map_sync_flags, fd,
+                         map_offset);
+            // Zezhou: add numa node binding.
+            if (activated_ptr != MAP_FAILED) {
+                unsigned long nodemask = (1 << 0); // which numa node.
+                if (mbind(activated_ptr, size, MPOL_BIND, &nodemask, 32, 0) != 0) {
+                    perror("mbind");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        } else {
+            static uint64_t prefix_len = 0;
+            printf("memory chunk size: %lld\n", size);
+            // Map the shared memory object into the process's address space
+            void *shm_ptr = mmap(0, 10ll * 1024 * 1024 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            if (shm_ptr == MAP_FAILED) {
+                perror("mmap");
+                exit(EXIT_FAILURE);
+            }
 
-        activated_ptr = (char *)shm_ptr + 1048576 + prefix_len;
-        prefix_len += size;
+            activated_ptr = (char *)shm_ptr + 1048576 + prefix_len;
+            prefix_len += size;
+        }
     }
 
     if (activated_ptr == MAP_FAILED && map_sync_flags) {
