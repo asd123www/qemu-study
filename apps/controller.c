@@ -387,7 +387,7 @@ void shm_backup_main() {
     char data[100] = {0};
 
     write_to_file(srcfd, "shm_migrate");
-    sleep(10);
+    sleep(40);
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     write_to_file(srcfd, "shm_migrate_switchover");

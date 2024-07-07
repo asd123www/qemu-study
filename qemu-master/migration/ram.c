@@ -3431,6 +3431,16 @@ out:
  */
 static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
 {
+    static uint64_t rate_ctl = 0; // 1ms
+    static uint64_t rate_ctl_l = 0, rate_ctl_r = 0;
+
+    if (rate_ctl != 0) {
+        rate_ctl_r = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        if (rate_ctl_r - rate_ctl_l < rate_ctl) {
+            return 0;
+        }
+    }
+
     RAMState **temp = opaque;
     RAMState *rs = *temp;
     PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
@@ -3466,6 +3476,15 @@ static int ram_save_iterate_shm(QEMUFile *f, void *opaque)
                 }
             }
         }
+    }
+
+    if (count < 7000) {
+        rate_ctl = rate_ctl == 0? 50000000: rate_ctl * 2;
+        rate_ctl_l = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        // printf("Rate control: %lld\n", rate_ctl);
+    } else {
+        rate_ctl = 5000000;
+        rate_ctl_l = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
     // printf("\n asd123www: %d pages are dirty.\n", count);
     return 0;
