@@ -47,7 +47,13 @@ expect "root@syzkaller:"
 send "cd ../..\r"
 
 expect "root@syzkaller:"
+send "cd redis\r"
+
+expect "root@syzkaller:"
 send "redis-server redis-server.conf\r"
+
+expect "root@syzkaller:"
+send "cd ..\r"
 
 expect "root@syzkaller:"
 send "fish\r"
