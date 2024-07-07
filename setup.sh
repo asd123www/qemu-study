@@ -3,6 +3,7 @@
 # Check for argument
 if [ -z "$1" ]; then
   echo "No NIC interface was provided"
+  exit 1
 else
   echo "NIC interface is: $1"
 fi

@@ -185,7 +185,7 @@ cat ../apps/tcp/client.c | sudo tee $DIR/root/tcp/client.c
 cat ../apps/tcp/server.c | sudo tee $DIR/root/tcp/server.c
 cat ../apps/tcp/Makefile | sudo tee $DIR/root/tcp/Makefile
 # sudo mkdir -p $DIR/root/stress-ng/
-sudo cp -r ../apps/graph500-mirror/ $DIR/root/
+sudo cp -r ../apps/graph500/ $DIR/root/
 sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
 

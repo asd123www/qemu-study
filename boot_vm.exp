@@ -38,7 +38,7 @@ expect "root@syzkaller:"
 send "cd ..\r"
 
 expect "root@syzkaller:"
-send "cd graph500-mirror/src\r"
+send "cd graph500/src\r"
 
 expect "root@syzkaller:"
 send "make\r"
