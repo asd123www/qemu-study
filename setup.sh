@@ -79,6 +79,12 @@ sudo apt-get install debootstrap
 # chmod +x create-image.sh
 # sudo ./create-image.sh
 
+# initialize apps.
+cd apps
+gcc controller.c -o controller -O3
+cd redis
+sudo bash setup_redis_client.sh
+
 # setup the network bridge for public VM IP address.
 sudo ip link add br0 type bridge
 sudo ip link set br0 up

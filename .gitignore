@@ -55,3 +55,4 @@ qemu-monitor-migration
 kernel-image/bull*
 kernel-image/chroot/
 linux*
+apps/controller
