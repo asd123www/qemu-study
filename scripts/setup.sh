@@ -58,7 +58,6 @@ cd ..
 sudo apt install libslirp0 -y
 
 # compile Linux code.
-KERNEL_VER=5.10.54
 echo "Use Linux-$KERNEL_VER"
 wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
 tar xvf linux-$KERNEL_VER.tar.xz
