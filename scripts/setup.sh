@@ -1,12 +1,5 @@
 #!/bin/bash
-
-# Check for argument
-if [ -z "$1" ]; then
-  echo "No NIC interface was provided"
-  exit 1
-else
-  echo "NIC interface is: $1"
-fi
+source config.txt
 
 git config --global --add safe.directory '*'
 sudo git submodule init
@@ -85,11 +78,12 @@ cd redis
 sudo bash setup_redis_client.sh
 
 # setup the network bridge for public VM IP address.
+echo "NIC interface is: $NIC_NAME"
 sudo ip link add br0 type bridge
 sudo ip link set br0 up
-sudo ip link set $1 master br0
-ip_addr=$(ip addr show $1 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
-sudo ip addr flush dev $1 
+sudo ip link set $NIC_NAME master br0
+ip_addr=$(ip addr show $NIC_NAME | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
+sudo ip addr flush dev $NIC_NAME
 sudo ip addr add $ip_addr/24 brd + dev br0
 # tap0 for src, tap1 for dst.
 sudo ip tuntap add dev tap0 mode tap
@@ -100,7 +94,7 @@ sudo ip link set dev tap1 up
 sudo ip link set tap1 master br0
 
 # disable nic adaptive batching.
-# sudo ethtool -C $1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
-# sudo ethtool -C $1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+# sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+# sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
 # sudo ethtool -C tap0 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
 # sudo ethtool -C tap1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0

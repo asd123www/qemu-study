@@ -43,34 +43,6 @@ void get_config_value(const char *key, char *value) {
     fclose(file);
 }
 
-void get_local_addr(char *iface, char *local_ip) {
-    int fd;
-    struct ifreq ifr;
-
-    // Create a socket so we can use ioctl on it to get the interface info
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        perror("socket");
-        exit(EXIT_FAILURE);
-    }
-
-    // Type of address to retrieve - IPv4 IP address
-    ifr.ifr_addr.sa_family = AF_INET;
-
-    // Copy the interface name in the ifreq structure
-    strncpy(ifr.ifr_name, iface, sizeof(iface));
-
-    // Get the IP address
-    if (ioctl(fd, SIOCGIFADDR, &ifr) < 0) {
-        perror("asd123www: ioctl");
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
-
-    // Copy the IP address into the ip buffer, converting it from binary to text form
-    inet_ntop(AF_INET, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, local_ip, 16);
-}
-
 int listen_wrapper(char *addr, char *port) {
     int sockfd, connfd, len;
     struct sockaddr_in servaddr, cli;
@@ -161,7 +133,6 @@ int connect_wrapper(char *addr, char *port) {
 
 int connfd, srcfd, dstfd;
 
-char iface[IP_LEN], local_ip[IP_LEN];
 char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
 char buff[DATA_LEN];
@@ -174,7 +145,7 @@ void src_main() {
     printf("Hello form the source!\n");
 
     // build connection with `backup`.
-    connfd = listen_wrapper(local_ip, src_control_port);
+    connfd = listen_wrapper(src_ip, src_control_port);
 
     bzero(buff, DATA_LEN);
     while (1) {
@@ -216,7 +187,7 @@ void dst_main() {
         fclose(pid_file);
     }
 
-    connfd = listen_wrapper(local_ip, dst_control_port);
+    connfd = listen_wrapper(dst_ip, dst_control_port);
 
     if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
         printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
@@ -423,7 +394,6 @@ int main(int argc, char *argv[]) {
 
 
     // read the config file.
-    get_config_value("NIC_NAME", iface);
     get_config_value("SRC_IP", src_ip);
     get_config_value("DST_IP", dst_ip);
     get_config_value("BACKUP_IP", backup_ip);
@@ -432,8 +402,6 @@ int main(int argc, char *argv[]) {
     get_config_value("SRC_CONTROL_PORT", src_control_port);
     get_config_value("DST_CONTROL_PORT", dst_control_port);
     get_config_value("BACKUP_CONTROL_PORT", backup_control_port);
-
-    get_local_addr(iface, local_ip);
 
     // migration mode.
     if (strcmp(argv[1], "shm") == 0) {
