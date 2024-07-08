@@ -23,12 +23,12 @@ else
 fi
 
 
-cd kernel-image
-chmod +x create-image.sh
-sudo bash create-image.sh
-rm -f $SHARED_STORAGE/bullseye.img
-cp bullseye.img $SHARED_STORAGE
-cd ..
+# cd kernel-image
+# chmod +x create-image.sh
+# sudo bash create-image.sh
+# rm -f $SHARED_STORAGE/bullseye.img
+# cp bullseye.img $SHARED_STORAGE
+# cd ..
 
 # start the VM
 $1  ./linux-$KERNEL_VER $SHARED_STORAGE $2 $3
