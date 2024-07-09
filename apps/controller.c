@@ -23,6 +23,24 @@ int execute_wrapper(char *command) {
     return system(commandname);
 }
 
+int execute_wrapper_process(char *command) {
+    pid_t pid = vfork();
+    if (pid == -1) {
+        // Fork failed
+        perror("fork");
+        exit(-1);
+    } else if (pid == 0) {
+        char *argv[] = {"sh", "-c", (char *)command, NULL};
+        execvp("sh", argv);
+
+        puts("Spawned process quited.");fflush(stdout);
+        // If execvp returns, it must have failed
+        exit(-1);
+    } else {
+        return 0;
+    }
+}
+
 void get_config_value(const char *key, char *value) {
     FILE* file = fopen("./config.txt", "r");
     if (file == NULL) {
@@ -127,9 +145,9 @@ int connect_wrapper(char *addr, char *port) {
  * -------------------------------------------
  */
 
-#define IP_LEN 16
+#define IP_LEN 64
 #define PORT_LEN 20
-#define DATA_LEN 1024
+#define DATA_LEN 10240
 
 int connfd, srcfd, dstfd;
 
@@ -137,12 +155,13 @@ char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
 char buff[DATA_LEN];
 struct timespec start, end;
+char bench_script[256], cpu_num[256], memory_size[256], output_file[256];
 
 char startString[15] = "start migration";
 char endString[15] =   "ended migration";
 
 void src_main() {
-    printf("Hello form the source!\n");
+    printf("Hello from the source!\n");
 
     // build connection with `backup`.
     connfd = listen_wrapper(src_ip, src_control_port);
@@ -178,7 +197,7 @@ void signal_handler_dst(int signal) {
 }
 
 void dst_main() {
-    printf("Hello form the dest!\n");
+    printf("Hello from the dest!\n");
 
     // write pid to a file for signal.
     FILE *pid_file = fopen("./controller.pid", "w");
@@ -235,7 +254,7 @@ void signal_handler_backup(int signal) {
 }
 
 void backup_main() {
-    printf("Hello form the backup!\n");
+    printf("Hello from the backup!\n");
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
 
@@ -278,14 +297,14 @@ void signal_handler_shm_src(int signal) {
         // printf("shm_src: VM image is complete!\n");
         write_to_file(connfd, "complete_vm_image");
         clock_gettime(CLOCK_MONOTONIC, &end);
+        execute_wrapper("echo \"q\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         printf("\n\nsrc complete VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
-        execute_wrapper("echo \"q\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");  
-        puts("Quit src.");fflush(stdout);
+        puts("Quit src.");
         exit(-1);
     }
 }
 void shm_src_main() {
-    printf("Hello form the shm_source!\n");
+    printf("Hello from the shm_source!\n");
     FILE *pid_file = fopen("./src_controller.pid", "w");
     if (pid_file) {
         fprintf(pid_file, "%d", getpid());
@@ -294,7 +313,12 @@ void shm_src_main() {
 
     execute_wrapper("sudo rm /dev/shm/my_shared_memory");
 
+    char instr[2048];
+    sprintf(instr, "sudo bash scripts/src_boot.sh %s %s %s > %s", bench_script, cpu_num, memory_size, output_file);
+    execute_wrapper_process(instr);
+
     // build connection with `backup`.
+    printf("addr:  %s:%s\n", src_ip, src_control_port);
     connfd = listen_wrapper(src_ip, src_control_port);
 
     bzero(buff, DATA_LEN);
@@ -310,7 +334,8 @@ void shm_src_main() {
     read_from_file(connfd, sizeof("shm_migrate_switchover"), buff);
     assert(strcmp(buff, "shm_migrate_switchover") == 0);
     clock_gettime(CLOCK_MONOTONIC, &start);
-    execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+    int ret = execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+    printf("Connect result: %d\n", ret);fflush(stdout);
 
     while(1) {
         sleep(1);
@@ -328,7 +353,7 @@ void signal_handler_shm_dst(int signal) {
     }
 }
 void shm_dst_main() {
-    printf("Hello form the shm_destination!\n");
+    printf("Hello from the shm_destination!\n");
     FILE *pid_file = fopen("./dst_controller.pid", "w");
     if (pid_file) {
         fprintf(pid_file, "%d", getpid());
@@ -336,6 +361,7 @@ void shm_dst_main() {
     }
 
     // build connection with `backup`.
+    printf("addr:  %s:%s\n", dst_ip, dst_control_port);
     connfd = listen_wrapper(dst_ip, dst_control_port);
 
     if (signal(SIGUSR1, signal_handler_shm_dst) == SIG_ERR) {
@@ -344,10 +370,23 @@ void shm_dst_main() {
     }
 
     bzero(buff, DATA_LEN);
+
+    read_from_file(connfd, sizeof("start_target_vm"), buff);
+    assert(strcmp(buff, "start_target_vm") == 0);
+    char instr[2048];
+    sprintf(instr, "sudo bash scripts/dst_boot.sh %s %s > %s", cpu_num, memory_size, output_file);
+    puts("Starting dest VM!"); fflush(stdout);
+    execute_wrapper_process(instr);
+
     read_from_file(connfd, sizeof("shm_load_vm_image"), buff);
     assert(strcmp(buff, "shm_load_vm_image") == 0);
     clock_gettime(CLOCK_MONOTONIC, &start);
-    execute_wrapper("echo \"migrate_incoming_shm /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
+
+    while (1) {
+        int ret = execute_wrapper("echo \"migrate_incoming_shm /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
+        if (!ret) break;
+        // usleep(10000);
+    }
 
     while (1) {
         sleep(1);
@@ -356,12 +395,20 @@ void shm_dst_main() {
 
 // simulate a control plane.
 void shm_backup_main() {
-    printf("Hello form the shm_backup!\n");
+    printf("Hello from the shm_backup!\n");
+    printf("src:  %s:%s\n", src_ip, src_control_port);
+    printf("dst:  %s:%s\n", dst_ip, dst_control_port);fflush(stdout);
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
     char data[100] = {0};
 
     write_to_file(srcfd, "shm_migrate");
+    // Zezhou: this is a little bit tricky.
+    //    So if we don't know who is the destination, then we can't start the target VM.
+    //    But can't we start a target VM in all machines? Because OS does lazy allocation.
+    //    Actually there is no resouce allocated.
+    sleep(1);
+    write_to_file(dstfd, "start_target_vm");
     sleep(40);
     clock_gettime(CLOCK_MONOTONIC, &start);
 
@@ -385,13 +432,22 @@ void shm_backup_main() {
 
 int main(int argc, char *argv[]) {
     // read machine name: `src`, `dst`, or `client`.
-    if (argc < 3) {
+    if (argc < 7) {
         printf("Usage: %s <migration mode: `shm`, or `normal`> <machine type: `src`, `dst`, or `backup`>\n", argv[0]);
+        printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
+        printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
         return 1;
     }
-    printf("Migration Mode: %s\n", argv[1]);
+    printf("Migration mode: %s\n", argv[1]);
     printf("Machine type: %s\n", argv[2]);
-
+    printf("benchmark script: %s\n", argv[3]);
+    printf("# of vCPU: %s\n", argv[4]);
+    printf("Memory size: %s\n", argv[5]);
+    printf("Output file: %s\n", argv[6]);
+    strcpy(bench_script, argv[3]);
+    strcpy(cpu_num, argv[4]);
+    strcpy(memory_size, argv[5]);
+    strcpy(output_file, argv[6]);
 
     // read the config file.
     get_config_value("SRC_IP", src_ip);
