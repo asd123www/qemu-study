@@ -43,6 +43,7 @@ else
 fi
 
 cd qemu-master
+git checkout main
 ./configure --target-list=x86_64-softmmu --enable-kvm --enable-slirp
 make -j 10
 sudo make install
