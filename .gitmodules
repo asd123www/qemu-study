@@ -1,3 +1,7 @@
 [submodule "apps/stress-ng"]
 	path = apps/stress-ng
 	url = https://github.com/ColinIanKing/stress-ng.git
+
+[submodule "qemu-master"]
+	path = qemu-master
+	url = https://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@github.com/asd123www/qemu-master.git
