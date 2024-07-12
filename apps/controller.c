@@ -147,7 +147,7 @@ int connect_wrapper(char *addr, char *port) {
 
 #define IP_LEN 64
 #define PORT_LEN 20
-#define DATA_LEN 10240
+#define DATA_LEN 1024
 
 int connfd, srcfd, dstfd;
 
@@ -167,9 +167,10 @@ void write_to_file(int fd, char *data) {
     assert(write_len == strlen(data));
 }
 void read_from_file(int fd, uint32_t len, char *data) {
+    memset(data, 0, len + 1);
     uint32_t read_len = 0;
     while (1) {
-        read_len = read(fd, data, len);
+        read_len = read(fd, data, len - 1);
         if (read_len) break;
     }
     assert(read_len == len - 1);
@@ -178,12 +179,24 @@ void read_from_file(int fd, uint32_t len, char *data) {
 
 // ------------------------------ QEMU's migration control ------------------------------
 
+void signal_handler_src(int signal) {
+    // qemu tells the src control that pre-copy has done.
+    if (signal == SIGUSR1) {
+        printf("src: Received SIGUSR1 signal\n");
+        write_to_file(connfd, "qemu_pre_copy_finish");
+    }
+}
 void qemu_src_main() {
     printf("Hello from the source!\n");
     FILE *pid_file = fopen("./src_controller.pid", "w");
     if (pid_file) {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
+    }
+
+    if (signal(SIGUSR1, signal_handler_src) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
     }
 
     char instr[2048];
@@ -194,19 +207,29 @@ void qemu_src_main() {
     printf("addr:  %s:%s\n", src_ip, src_control_port);
     connfd = listen_wrapper(src_ip, src_control_port);
 
-    bzero(buff, DATA_LEN);
     read_from_file(connfd, sizeof("qemu_migrate"), buff);
     assert(strcmp(buff, "qemu_migrate") == 0);
 
+    // WARNING: we should add more options.
     sprintf(instr, "echo \"migrate -d tcp:%s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", dst_ip, migration_port);
     assert(execute_wrapper(instr) == 0);
+
+    while (1) {
+        sleep(1);
+    }
 }
 
 void signal_handler_dst(int signal) {
+    static int state = 0;
     if (signal == SIGUSR1) {
         printf("dst: Received SIGUSR1 signal\n");
-        uint32_t write_len = write(connfd, endString, sizeof(endString));
-        assert(write_len == sizeof(endString));
+        if (state == 0) {
+            state = 1;
+            write_to_file(connfd, "qemu_vm_restart");
+        } else {
+            assert(state == 1);
+            write_to_file(connfd, "qemu_post_copy_finish");
+        }
     }
 }
 void qemu_dst_main() {
@@ -216,6 +239,21 @@ void qemu_dst_main() {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
     }
+
+    // Set up the sigaction structure to use our signal_handler
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = signal_handler_dst;
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(-1);
+    }
+
+    // if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
+    //     printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+    //     exit(-1);
+    // }
 
     // start dest VM.
     char instr[2048];
@@ -236,11 +274,6 @@ void qemu_dst_main() {
     printf("addr:  %s:%s\n", dst_ip, dst_control_port);
     connfd = listen_wrapper(dst_ip, dst_control_port);
 
-    // if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
-    //     printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
-    //     exit(-1);
-    // }
-
     while (1) {
         sleep(1);
     }
@@ -255,7 +288,26 @@ void qemu_backup_main() {
     dstfd = connect_wrapper(dst_ip, dst_control_port);
     char data[100] = {0};
 
+    struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
+    clock_gettime(CLOCK_MONOTONIC, &before_migrate);
     write_to_file(srcfd, "qemu_migrate");
+
+    read_from_file(srcfd, sizeof("qemu_pre_copy_finish"), buff);
+    assert(strcmp(buff, "qemu_pre_copy_finish") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
+    printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+
+    read_from_file(dstfd, sizeof("qemu_vm_restart"), buff);
+    printf("asd123www: %s\n", buff);
+    assert(strcmp(buff, "qemu_vm_restart") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &vm_restart);
+
+    read_from_file(dstfd, sizeof("qemu_post_copy_finish"), buff);
+    assert(strcmp(buff, "qemu_post_copy_finish") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &post_copy_finish);
+
+    printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
+    printf("post-copy duration: %lld ns\n", post_copy_finish.tv_sec * 1000000000LL + post_copy_finish.tv_nsec - vm_restart.tv_sec * 1000000000LL - vm_restart.tv_nsec);
 }
 
 
@@ -290,7 +342,6 @@ void shm_src_main() {
     printf("addr:  %s:%s\n", src_ip, src_control_port);
     connfd = listen_wrapper(src_ip, src_control_port);
 
-    bzero(buff, DATA_LEN);
     read_from_file(connfd, sizeof("shm_migrate"), buff);
     assert(strcmp(buff, "shm_migrate") == 0);
     execute_wrapper("echo \"shm_migrate /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
@@ -313,7 +364,7 @@ void shm_src_main() {
 
 void signal_handler_shm_dst(int signal) {
     if (signal == SIGUSR1) {
-        // printf("shm_dst: Loaded VM from shm!\n");
+        // printf("shm_dst: vm restarted!\n");
         write_to_file(connfd, "switchover_finished");
         clock_gettime(CLOCK_MONOTONIC, &end);
         printf("\n\ndst load VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
@@ -337,8 +388,6 @@ void shm_dst_main() {
         printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
         exit(-1);
     }
-
-    bzero(buff, DATA_LEN);
 
     read_from_file(connfd, sizeof("start_target_vm"), buff);
     assert(strcmp(buff, "start_target_vm") == 0);
@@ -376,7 +425,7 @@ void shm_backup_main() {
     //    So if we don't know who is the destination, then we can't start the target VM.
     //    But can't we start a target VM in all machines? Because OS does lazy allocation.
     //    Actually there is no resouce allocated.
-    sleep(1);
+    usleep(5000); // wait some time for src runtime image be ready.
     write_to_file(dstfd, "start_target_vm");
     sleep(40);
     clock_gettime(CLOCK_MONOTONIC, &start);
