@@ -224,8 +224,8 @@ void qemu_dst_main() {
     printf("%s\n", instr);
     execute_wrapper_process(instr);
 
-
-    sprintf(instr, "echo \"migrate_incoming -d %s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", dst_ip, migration_port);
+    // migrate_incoming tcp:10.10.1.1:4444
+    sprintf(instr, "echo \"migrate_incoming tcp:%s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", dst_ip, migration_port);
     printf("%s\n", instr);
     while (1) {
         int ret = execute_wrapper(instr);

@@ -1,4 +1,13 @@
 #!/bin/bash
+
+# Check for argument: `qemu` is vanilla qemu, `main` is shm migration.
+if [ -z "$1" ]; then
+  echo "No QEMU branch was provided: \`qemu\` or \`main\`"
+  exit 1
+else
+  echo "QEMU branch: $1"
+fi
+
 source config.txt
 
 git config --global --add safe.directory '*'
@@ -43,7 +52,7 @@ else
 fi
 
 cd qemu-master
-git checkout main
+git checkout $1
 ./configure --target-list=x86_64-softmmu --enable-kvm --enable-slirp
 make -j 10
 sudo make install
