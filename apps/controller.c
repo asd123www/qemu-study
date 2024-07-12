@@ -18,8 +18,8 @@
 #define MAX_LINE_LENGTH 255
 
 int execute_wrapper(char *command) {
-    char commandname[256];
-    snprintf(commandname, 256, "%s", command);
+    char commandname[2048];
+    snprintf(commandname, 2048, "%s", command);
     return system(commandname);
 }
 
@@ -160,123 +160,6 @@ char bench_script[256], cpu_num[256], memory_size[256], output_file[256];
 char startString[15] = "start migration";
 char endString[15] =   "ended migration";
 
-void src_main() {
-    printf("Hello from the source!\n");
-
-    // build connection with `backup`.
-    connfd = listen_wrapper(src_ip, src_control_port);
-
-    bzero(buff, DATA_LEN);
-    while (1) {
-        uint32_t read_len = read(connfd, buff, sizeof(buff));
-        if (!read_len) continue;
-        if (read_len != strlen(startString)) {
-            puts("asd123www: start migration is wrong."); fflush(stdout);
-            exit(-1);
-        }
-
-        assert(strcmp(buff, startString) == 0);
-
-        // `sudo bash start_migration.sh`
-        int ret = execute_wrapper("sudo bash ./start_migration.sh");
-        if (ret) {
-            puts("asd123www: start migration is wrong."); fflush(stdout);
-            exit(-1);
-        }
-
-        break;
-    }
-}
-
-void signal_handler_dst(int signal) {
-    if (signal == SIGUSR1) {
-        printf("dst: Received SIGUSR1 signal\n");
-        uint32_t write_len = write(connfd, endString, sizeof(endString));
-        assert(write_len == sizeof(endString));
-    }
-}
-
-void dst_main() {
-    printf("Hello from the dest!\n");
-
-    // write pid to a file for signal.
-    FILE *pid_file = fopen("./controller.pid", "w");
-    if (pid_file) {
-        fprintf(pid_file, "%d", getpid());
-        fclose(pid_file);
-    }
-
-    connfd = listen_wrapper(dst_ip, dst_control_port);
-
-    if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
-        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
-        exit(-1);
-    }
-
-    printf("dst: Waiting for SIGUSR1 signal\n");
-
-    // keeps the program alive
-    while(1) {
-        sleep(1);
-    }
-}
-
-
-void signal_handler_backup(int signal) {
-    if (signal == SIGUSR1) {
-        printf("backup: Received SIGUSR1 signal\n");
-        sleep(3);
-
-        struct timespec start, end;
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        // issue migration command.
-        uint32_t write_len = write(srcfd, startString, sizeof(startString));
-        assert(write_len == sizeof(startString));
-
-        // wait for completion signal.
-        bzero(buff, DATA_LEN);
-        uint32_t read_len = read(dstfd, buff, sizeof(buff));
-        assert(read_len == sizeof(endString));
-        assert(strcmp(endString, buff) == 0);
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-
-        printf("start: %lld ns\n", start.tv_sec * 1000000000LL + start.tv_nsec);
-        printf("end: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec);
-        printf("durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
-
-        close(srcfd);
-        close(dstfd);
-        
-        exit(-1);
-    }
-}
-
-void backup_main() {
-    printf("Hello from the backup!\n");
-    srcfd = connect_wrapper(src_ip, src_control_port);
-    dstfd = connect_wrapper(dst_ip, dst_control_port);
-
-    // write pid to a file for signal.
-    FILE *pid_file = fopen("./controller.pid", "w");
-    if (pid_file) {
-        fprintf(pid_file, "%d", getpid());
-        fclose(pid_file);
-    }
-
-    if (signal(SIGUSR1, signal_handler_backup) == SIG_ERR) {
-        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
-        exit(-1);
-    }
-
-    printf("backup: Waiting for SIGUSR1 signal\n");
-
-    // keeps the program alive
-    while(1) {
-        sleep(1);
-    }
-}
 
 
 void write_to_file(int fd, char *data) {
@@ -291,6 +174,92 @@ void read_from_file(int fd, uint32_t len, char *data) {
     }
     assert(read_len == len - 1);
 }
+
+
+// ------------------------------ QEMU's migration control ------------------------------
+
+void qemu_src_main() {
+    printf("Hello from the source!\n");
+    FILE *pid_file = fopen("./src_controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
+
+    char instr[2048];
+    sprintf(instr, "sudo bash scripts/src_boot.sh %s %s %s > %s", bench_script, cpu_num, memory_size, output_file);
+    execute_wrapper_process(instr);
+
+    // build connection with `backup`.
+    printf("addr:  %s:%s\n", src_ip, src_control_port);
+    connfd = listen_wrapper(src_ip, src_control_port);
+
+    bzero(buff, DATA_LEN);
+    read_from_file(connfd, sizeof("qemu_migrate"), buff);
+    assert(strcmp(buff, "qemu_migrate") == 0);
+
+    sprintf(instr, "echo \"migrate -d tcp:%s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", dst_ip, migration_port);
+    assert(execute_wrapper(instr) == 0);
+}
+
+void signal_handler_dst(int signal) {
+    if (signal == SIGUSR1) {
+        printf("dst: Received SIGUSR1 signal\n");
+        uint32_t write_len = write(connfd, endString, sizeof(endString));
+        assert(write_len == sizeof(endString));
+    }
+}
+void qemu_dst_main() {
+    printf("Hello from the dest!\n");
+    FILE *pid_file = fopen("./dst_controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
+
+    // start dest VM.
+    char instr[2048];
+    sprintf(instr, "sudo bash scripts/dst_boot.sh %s %s > %s", cpu_num, memory_size, output_file);
+    puts("Starting dest VM!"); fflush(stdout);
+    printf("%s\n", instr);
+    execute_wrapper_process(instr);
+
+
+    sprintf(instr, "echo \"migrate_incoming -d %s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", dst_ip, migration_port);
+    printf("%s\n", instr);
+    while (1) {
+        int ret = execute_wrapper(instr);
+        if (!ret) break;
+    }
+
+    // build connection with `backup`.
+    printf("addr:  %s:%s\n", dst_ip, dst_control_port);
+    connfd = listen_wrapper(dst_ip, dst_control_port);
+
+    // if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
+    //     printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+    //     exit(-1);
+    // }
+
+    while (1) {
+        sleep(1);
+    }
+}
+
+
+void qemu_backup_main() {
+    printf("Hello from the backup!\n");
+    printf("src:  %s:%s\n", src_ip, src_control_port);
+    printf("dst:  %s:%s\n", dst_ip, dst_control_port);fflush(stdout);
+    srcfd = connect_wrapper(src_ip, src_control_port);
+    dstfd = connect_wrapper(dst_ip, dst_control_port);
+    char data[100] = {0};
+
+    write_to_file(srcfd, "qemu_migrate");
+}
+
+
+// ------------------------------ Shared memory migration control. ------------------------------
 
 void signal_handler_shm_src(int signal) {
     if (signal == SIGUSR1) {
@@ -432,22 +401,12 @@ void shm_backup_main() {
 
 int main(int argc, char *argv[]) {
     // read machine name: `src`, `dst`, or `client`.
-    if (argc < 7) {
+    if (argc < 3) {
         printf("Usage: %s <migration mode: `shm`, or `normal`> <machine type: `src`, `dst`, or `backup`>\n", argv[0]);
-        printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
-        printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
         return 1;
     }
     printf("Migration mode: %s\n", argv[1]);
     printf("Machine type: %s\n", argv[2]);
-    printf("benchmark script: %s\n", argv[3]);
-    printf("# of vCPU: %s\n", argv[4]);
-    printf("Memory size: %s\n", argv[5]);
-    printf("Output file: %s\n", argv[6]);
-    strcpy(bench_script, argv[3]);
-    strcpy(cpu_num, argv[4]);
-    strcpy(memory_size, argv[5]);
-    strcpy(output_file, argv[6]);
 
     // read the config file.
     get_config_value("SRC_IP", src_ip);
@@ -462,26 +421,74 @@ int main(int argc, char *argv[]) {
     // migration mode.
     if (strcmp(argv[1], "shm") == 0) {
         if (strcmp(argv[2], "src") == 0) {
+            if (argc < 7) {
+                printf("Usage: %s shm src\n", argv[0]);
+                printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
+                printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                return 1;
+            }
+            printf("benchmark script: %s\n", argv[3]);
+            printf("# of vCPU: %s\n", argv[4]);
+            printf("Memory size: %s\n", argv[5]);
+            printf("Output file: %s\n", argv[6]);
+            strcpy(bench_script, argv[3]);
+            strcpy(cpu_num, argv[4]);
+            strcpy(memory_size, argv[5]);
+            strcpy(output_file, argv[6]);
             shm_src_main();
         } else if (strcmp(argv[2], "dst") == 0) {
+            if (argc < 6) {
+                printf("Usage: %s shm dst\n", argv[0]);
+                printf("          <# of vCPU: e.g. `4`> <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                return 1;
+            }
+            printf("# of vCPU: %s\n", argv[3]);
+            printf("Memory size: %s\n", argv[4]);
+            printf("Output file: %s\n", argv[5]);
+            strcpy(cpu_num, argv[3]);
+            strcpy(memory_size, argv[4]);
+            strcpy(output_file, argv[5]);
             shm_dst_main();
         } else {
             assert(strcmp(argv[2], "backup") == 0);
             shm_backup_main();
         }
-
     } else {
         assert(strcmp(argv[1], "normal") == 0);
         if (strcmp(argv[2], "src") == 0) {
-            src_main();
+            if (argc < 7) {
+                printf("Usage: %s shm src\n", argv[0]);
+                printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
+                printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                return 1;
+            }
+            printf("benchmark script: %s\n", argv[3]);
+            printf("# of vCPU: %s\n", argv[4]);
+            printf("Memory size: %s\n", argv[5]);
+            printf("Output file: %s\n", argv[6]);
+            strcpy(bench_script, argv[3]);
+            strcpy(cpu_num, argv[4]);
+            strcpy(memory_size, argv[5]);
+            strcpy(output_file, argv[6]);
+            qemu_src_main();
         } else if (strcmp(argv[2], "dst") == 0) {
-            dst_main();
+            if (argc < 6) {
+                printf("Usage: %s shm dst\n", argv[0]);
+                printf("          <# of vCPU: e.g. `4`> <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                return 1;
+            }
+            printf("# of vCPU: %s\n", argv[3]);
+            printf("Memory size: %s\n", argv[4]);
+            printf("Output file: %s\n", argv[5]);
+            strcpy(cpu_num, argv[3]);
+            strcpy(memory_size, argv[4]);
+            strcpy(output_file, argv[5]);
+            qemu_dst_main();
         } else {
             assert(strcmp(argv[2], "backup") == 0);
-            backup_main();
+            qemu_backup_main();
         }
     }
-
 
     return 0;
 }

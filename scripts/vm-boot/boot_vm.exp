@@ -59,9 +59,6 @@ send "redis-server redis-server.conf\r"
 expect "root@syzkaller:"
 send "cd ..\r"
 
-expect "root@syzkaller:"
-send "fish\r"
-
 interact
 
 #Do whatever you want to do with in the guest VM. ( Run a process and write result to log )
