@@ -219,17 +219,19 @@ void qemu_src_main() {
     }
 }
 
-void signal_handler_dst(int signal) {
-    static int state = 0;
+volatile sig_atomic_t sigusr1_count = 0;
+void signal_handler_dst_1(int signal) {
     if (signal == SIGUSR1) {
         printf("dst: Received SIGUSR1 signal\n");
-        if (state == 0) {
-            state = 1;
-            write_to_file(connfd, "qemu_vm_restart");
-        } else {
-            assert(state == 1);
-            write_to_file(connfd, "qemu_post_copy_finish");
-        }
+        write_to_file(connfd, !sigusr1_count?"qemu_vm_restart":"qemu_post_copy_finish");
+        sigusr1_count = 1;
+    }
+}
+void signal_handler_dst_2(int signal) {
+    if (signal == SIGUSR2) {
+        printf("dst: Received SIGUSR2 signal\n");
+        write_to_file(connfd, !sigusr1_count?"qemu_vm_restart":"qemu_post_copy_finish");
+        sigusr1_count = 1;
     }
 }
 void qemu_dst_main() {
@@ -240,20 +242,24 @@ void qemu_dst_main() {
         fclose(pid_file);
     }
 
-    // Set up the sigaction structure to use our signal_handler
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = signal_handler_dst;
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGUSR1, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(-1);
-    }
-
-    // if (signal(SIGUSR1, signal_handler_dst) == SIG_ERR) {
-    //     printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+    // // Set up the sigaction structure to use our signal_handler
+    // struct sigaction sa;
+    // memset(&sa, 0, sizeof(sa));
+    // sa.sa_handler = signal_handler_dst;
+    // sa.sa_flags = SA_RESTART;
+    // if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+    //     perror("sigaction");
     //     exit(-1);
     // }
+
+    if (signal(SIGUSR1, signal_handler_dst_1) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
+    if (signal(SIGUSR2, signal_handler_dst_2) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
 
     // start dest VM.
     char instr[2048];
