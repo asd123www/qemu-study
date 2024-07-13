@@ -12,7 +12,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <signal.h>
-
+#include <stdbool.h>
 
 
 #define MAX_LINE_LENGTH 255
@@ -155,7 +155,7 @@ char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
 char buff[DATA_LEN];
 struct timespec start, end;
-char bench_script[256], cpu_num[256], memory_size[256], output_file[256];
+char max_bandwidth[256], bench_script[256], cpu_num[256], memory_size[256], output_file[256];
 
 char startString[15] = "start migration";
 char endString[15] =   "ended migration";
@@ -186,7 +186,8 @@ void signal_handler_src(int signal) {
         write_to_file(connfd, "qemu_pre_copy_finish");
     }
 }
-void qemu_src_main() {
+// flag: 1 pre-copy, 0 post-copy.
+void qemu_src_main(bool flag) {
     printf("Hello from the source!\n");
     FILE *pid_file = fopen("./src_controller.pid", "w");
     if (pid_file) {
@@ -203,6 +204,20 @@ void qemu_src_main() {
     sprintf(instr, "sudo bash scripts/src_boot.sh %s %s %s > %s", bench_script, cpu_num, memory_size, output_file);
     execute_wrapper_process(instr);
 
+    usleep(1000);
+    sprintf(instr, "echo \"migrate_set_parameter max-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
+    assert(execute_wrapper(instr) == 0);
+    if (!flag) {
+        sprintf(instr, "echo \"migrate_set_capability postcopy-ram on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        assert(execute_wrapper(instr) == 0);
+
+        sprintf(instr, "echo \"migrate_set_capability postcopy-preempt on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        assert(execute_wrapper(instr) == 0);
+
+        sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
+        assert(execute_wrapper(instr) == 0);
+    }
+
     // build connection with `backup`.
     printf("addr:  %s:%s\n", src_ip, src_control_port);
     connfd = listen_wrapper(src_ip, src_control_port);
@@ -214,9 +229,17 @@ void qemu_src_main() {
     sprintf(instr, "echo \"migrate -d tcp:%s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", dst_ip, migration_port);
     assert(execute_wrapper(instr) == 0);
 
-    while (1) {
-        sleep(1);
+    if (!flag) {
+        sleep(10); // switchover in 10s.
+        
+        sprintf(instr, "echo \"migrate_start_postcopy\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        assert(execute_wrapper(instr) == 0);
+    } else {
+        while (1) {
+            sleep(1);
+        }
     }
+
 }
 
 volatile sig_atomic_t sigusr1_count = 0;
@@ -234,23 +257,13 @@ void signal_handler_dst_2(int signal) {
         sigusr1_count = 1;
     }
 }
-void qemu_dst_main() {
+void qemu_dst_main(bool flag) {
     printf("Hello from the dest!\n");
     FILE *pid_file = fopen("./dst_controller.pid", "w");
     if (pid_file) {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
     }
-
-    // // Set up the sigaction structure to use our signal_handler
-    // struct sigaction sa;
-    // memset(&sa, 0, sizeof(sa));
-    // sa.sa_handler = signal_handler_dst;
-    // sa.sa_flags = SA_RESTART;
-    // if (sigaction(SIGUSR1, &sa, NULL) == -1) {
-    //     perror("sigaction");
-    //     exit(-1);
-    // }
 
     if (signal(SIGUSR1, signal_handler_dst_1) == SIG_ERR) {
         printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
@@ -274,6 +287,19 @@ void qemu_dst_main() {
     while (1) {
         int ret = execute_wrapper(instr);
         if (!ret) break;
+    }
+
+    sprintf(instr, "echo \"migrate_set_parameter max-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
+    assert(execute_wrapper(instr) == 0);
+    if (!flag) {
+        sprintf(instr, "echo \"migrate_set_capability postcopy-ram on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        assert(execute_wrapper(instr) == 0);
+
+        sprintf(instr, "echo \"migrate_set_capability postcopy-preempt on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        assert(execute_wrapper(instr) == 0);
+
+        sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
+        assert(execute_wrapper(instr) == 0);
     }
 
     // build connection with `backup`.
@@ -458,7 +484,7 @@ void shm_backup_main() {
 int main(int argc, char *argv[]) {
     // read machine name: `src`, `dst`, or `client`.
     if (argc < 3) {
-        printf("Usage: %s <migration mode: `shm`, or `normal`> <machine type: `src`, `dst`, or `backup`>\n", argv[0]);
+        printf("Usage: %s <migration mode: `shm`, `qemu-precopy`, or `qemu-postcopy`> <machine type: `src`, `dst`, or `backup`>\n", argv[0]);
         return 1;
     }
     printf("Migration mode: %s\n", argv[1]);
@@ -510,36 +536,44 @@ int main(int argc, char *argv[]) {
             shm_backup_main();
         }
     } else {
-        assert(strcmp(argv[1], "normal") == 0);
+        bool flag = !strcmp(argv[1], "qemu-precopy");
+        assert(flag || !strcmp(argv[1], "qemu-postcopy"));
+
         if (strcmp(argv[2], "src") == 0) {
-            if (argc < 7) {
+            if (argc < 8) {
                 printf("Usage: %s shm src\n", argv[0]);
                 printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
                 printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                printf("          <max-bandwidth: e.g. 1342177280B>\n");
                 return 1;
             }
             printf("benchmark script: %s\n", argv[3]);
             printf("# of vCPU: %s\n", argv[4]);
             printf("Memory size: %s\n", argv[5]);
             printf("Output file: %s\n", argv[6]);
+            printf("Max-bandwidth: %s\n", argv[7]);
             strcpy(bench_script, argv[3]);
             strcpy(cpu_num, argv[4]);
             strcpy(memory_size, argv[5]);
             strcpy(output_file, argv[6]);
-            qemu_src_main();
+            strcpy(max_bandwidth, argv[7]);
+            qemu_src_main(flag);
         } else if (strcmp(argv[2], "dst") == 0) {
-            if (argc < 6) {
+            if (argc < 7) {
                 printf("Usage: %s shm dst\n", argv[0]);
-                printf("          <# of vCPU: e.g. `4`> <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                printf("          <# of vCPU: e.g. `4`> <memory size: e.g. `8G`>\n");
+                printf("          <output file name: e.g. `vm_round1`> <max-bandwidth: e.g. 1342177280B>\n");
                 return 1;
             }
             printf("# of vCPU: %s\n", argv[3]);
             printf("Memory size: %s\n", argv[4]);
             printf("Output file: %s\n", argv[5]);
+            printf("Max-bandwidth: %s\n", argv[6]);
             strcpy(cpu_num, argv[3]);
             strcpy(memory_size, argv[4]);
             strcpy(output_file, argv[5]);
-            qemu_dst_main();
+            strcpy(max_bandwidth, argv[6]);
+            qemu_dst_main(flag);
         } else {
             assert(strcmp(argv[2], "backup") == 0);
             qemu_backup_main();
