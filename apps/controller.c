@@ -292,7 +292,6 @@ void qemu_backup_main() {
     printf("dst:  %s:%s\n", dst_ip, dst_control_port);fflush(stdout);
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
-    char data[100] = {0};
 
     struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
     clock_gettime(CLOCK_MONOTONIC, &before_migrate);
@@ -319,15 +318,19 @@ void qemu_backup_main() {
 
 // ------------------------------ Shared memory migration control. ------------------------------
 
-void signal_handler_shm_src(int signal) {
+void signal_handler_shm_src_complete(int signal) {
     if (signal == SIGUSR1) {
-        // printf("shm_src: VM image is complete!\n");
+        assert(sigusr1_count);
+        printf("shm_src: VM image is complete!\n");
         write_to_file(connfd, "complete_vm_image");
-        clock_gettime(CLOCK_MONOTONIC, &end);
         execute_wrapper("echo \"q\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
-        printf("\n\nsrc complete VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
-        puts("Quit src.");
-        exit(-1);
+    }
+}
+void signal_handler_shm_src_precopy(int signal) {
+    if (signal == SIGUSR2) {
+        printf("shm_src: pre-copy has finished!\n");
+        write_to_file(connfd, "shm_pre_copy_finish");
+        sigusr1_count = 1;
     }
 }
 void shm_src_main() {
@@ -336,6 +339,15 @@ void shm_src_main() {
     if (pid_file) {
         fprintf(pid_file, "%d", getpid());
         fclose(pid_file);
+    }
+
+    if (signal(SIGUSR1, signal_handler_shm_src_complete) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
+    if (signal(SIGUSR2, signal_handler_shm_src_precopy) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
     }
 
     execute_wrapper("sudo rm /dev/shm/my_shared_memory");
@@ -352,16 +364,9 @@ void shm_src_main() {
     assert(strcmp(buff, "shm_migrate") == 0);
     execute_wrapper("echo \"shm_migrate /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
 
-    if (signal(SIGUSR1, signal_handler_shm_src) == SIG_ERR) {
-        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
-        exit(-1);
-    }
-
     read_from_file(connfd, sizeof("shm_migrate_switchover"), buff);
     assert(strcmp(buff, "shm_migrate_switchover") == 0);
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    int ret = execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
-    printf("Connect result: %d\n", ret);fflush(stdout);
+    execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
 
     while(1) {
         sleep(1);
@@ -374,8 +379,6 @@ void signal_handler_shm_dst(int signal) {
         write_to_file(connfd, "switchover_finished");
         clock_gettime(CLOCK_MONOTONIC, &end);
         printf("\n\ndst load VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
-        puts("Quit dst.");fflush(stdout);
-        exit(-1);
     }
 }
 void shm_dst_main() {
@@ -424,34 +427,32 @@ void shm_backup_main() {
     printf("dst:  %s:%s\n", dst_ip, dst_control_port);fflush(stdout);
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
-    char data[100] = {0};
 
+    struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
+    clock_gettime(CLOCK_MONOTONIC, &before_migrate);
     write_to_file(srcfd, "shm_migrate");
+    write_to_file(srcfd, "shm_migrate_switchover");
     // Zezhou: this is a little bit tricky.
     //    So if we don't know who is the destination, then we can't start the target VM.
     //    But can't we start a target VM in all machines? Because OS does lazy allocation.
     //    Actually there is no resouce allocated.
-    usleep(5000); // wait some time for src runtime image be ready.
+    usleep(1000); // wait some time for src runtime image be ready.
     write_to_file(dstfd, "start_target_vm");
-    sleep(40);
-    clock_gettime(CLOCK_MONOTONIC, &start);
 
-    write_to_file(srcfd, "shm_migrate_switchover");
-    memset(data, 0, sizeof(data));
-    read_from_file(srcfd, sizeof("complete_vm_image"), data);
-    assert(strcmp(data, "complete_vm_image") == 0);
+    read_from_file(srcfd, sizeof("shm_pre_copy_finish"), buff);
+    assert(strcmp(buff, "shm_pre_copy_finish") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
+    printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
 
-
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    printf("durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+    read_from_file(srcfd, sizeof("complete_vm_image"), buff);
+    assert(strcmp(buff, "complete_vm_image") == 0);
 
     write_to_file(dstfd, "shm_load_vm_image");
-    memset(data, 0, sizeof(data));
-    read_from_file(dstfd, sizeof("switchover_finished"), data);
-    assert(strcmp(data, "switchover_finished") == 0);
+    read_from_file(dstfd, sizeof("switchover_finished"), buff);
+    assert(strcmp(buff, "switchover_finished") == 0);
+    clock_gettime(CLOCK_MONOTONIC, &vm_restart);
 
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    printf("durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+    printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
 }
 
 int main(int argc, char *argv[]) {
