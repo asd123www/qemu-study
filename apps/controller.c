@@ -204,9 +204,11 @@ void qemu_src_main(bool flag) {
     sprintf(instr, "sudo bash scripts/src_boot.sh %s %s %s > %s", bench_script, cpu_num, memory_size, output_file);
     execute_wrapper_process(instr);
 
-    usleep(1000);
     sprintf(instr, "echo \"migrate_set_parameter max-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
-    assert(execute_wrapper(instr) == 0);
+    while (1) {
+        int ret = execute_wrapper(instr);
+        if (!ret) break;
+    }
     if (!flag) {
         sprintf(instr, "echo \"migrate_set_capability postcopy-ram on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
@@ -214,7 +216,7 @@ void qemu_src_main(bool flag) {
         sprintf(instr, "echo \"migrate_set_capability postcopy-preempt on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
 
-        sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
+        sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth 2684354560\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
     }
 
@@ -230,16 +232,15 @@ void qemu_src_main(bool flag) {
     assert(execute_wrapper(instr) == 0);
 
     if (!flag) {
-        sleep(10); // switchover in 10s.
-        
+        sleep(1); // switchover in 10s.
+
         sprintf(instr, "echo \"migrate_start_postcopy\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
-    } else {
-        while (1) {
-            sleep(1);
-        }
     }
 
+    while (1) {
+        sleep(1);
+    }
 }
 
 volatile sig_atomic_t sigusr1_count = 0;
@@ -281,26 +282,25 @@ void qemu_dst_main(bool flag) {
     printf("%s\n", instr);
     execute_wrapper_process(instr);
 
-    // migrate_incoming tcp:10.10.1.1:4444
-    sprintf(instr, "echo \"migrate_incoming tcp:%s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", dst_ip, migration_port);
-    printf("%s\n", instr);
+    sprintf(instr, "echo \"migrate_set_parameter max-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", max_bandwidth);
     while (1) {
         int ret = execute_wrapper(instr);
         if (!ret) break;
     }
-
-    sprintf(instr, "echo \"migrate_set_parameter max-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
-    assert(execute_wrapper(instr) == 0);
     if (!flag) {
-        sprintf(instr, "echo \"migrate_set_capability postcopy-ram on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        sprintf(instr, "echo \"migrate_set_capability postcopy-ram on\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
         assert(execute_wrapper(instr) == 0);
 
-        sprintf(instr, "echo \"migrate_set_capability postcopy-preempt on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        sprintf(instr, "echo \"migrate_set_capability postcopy-preempt on\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
         assert(execute_wrapper(instr) == 0);
 
-        sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", max_bandwidth);
-        assert(execute_wrapper(instr) == 0);
+        // sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth 2684354560\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
+        // assert(execute_wrapper(instr) == 0);
     }
+
+    // migrate_incoming tcp:10.10.1.1:4444
+    sprintf(instr, "echo \"migrate_incoming tcp:%s:%s\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", dst_ip, migration_port);
+    assert(execute_wrapper(instr) == 0);
 
     // build connection with `backup`.
     printf("addr:  %s:%s\n", dst_ip, dst_control_port);
