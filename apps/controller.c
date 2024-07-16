@@ -216,8 +216,8 @@ void qemu_src_main(bool flag) {
         sprintf(instr, "echo \"migrate_set_capability postcopy-preempt on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
 
-        sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth 2684354560\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
-        assert(execute_wrapper(instr) == 0);
+        // sprintf(instr, "echo \"migrate_set_parameter max-postcopy-bandwidth 2684354560\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+        // assert(execute_wrapper(instr) == 0);
     }
 
     // build connection with `backup`.
@@ -232,7 +232,7 @@ void qemu_src_main(bool flag) {
     assert(execute_wrapper(instr) == 0);
 
     if (!flag) {
-        sleep(1); // switchover in 10s.
+        // sleep(1); // switchover in 10s.
 
         sprintf(instr, "echo \"migrate_start_postcopy\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
