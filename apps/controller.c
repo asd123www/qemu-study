@@ -312,6 +312,34 @@ void qemu_dst_main(bool flag) {
 }
 
 
+
+void signal_handler_backup(int signal) {
+    if (signal == SIGUSR1) {
+        printf("backup: Received SIGUSR1 signal\n");
+        sleep(5);
+
+        struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
+        clock_gettime(CLOCK_MONOTONIC, &before_migrate);
+        write_to_file(srcfd, "qemu_migrate");
+
+        read_from_file(srcfd, sizeof("qemu_pre_copy_finish"), buff);
+        assert(strcmp(buff, "qemu_pre_copy_finish") == 0);
+        clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
+        printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+
+        read_from_file(dstfd, sizeof("qemu_vm_restart"), buff);
+        printf("asd123www: %s\n", buff);
+        assert(strcmp(buff, "qemu_vm_restart") == 0);
+        clock_gettime(CLOCK_MONOTONIC, &vm_restart);
+
+        read_from_file(dstfd, sizeof("qemu_post_copy_finish"), buff);
+        assert(strcmp(buff, "qemu_post_copy_finish") == 0);
+        clock_gettime(CLOCK_MONOTONIC, &post_copy_finish);
+
+        printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
+        printf("post-copy duration: %lld ns\n", post_copy_finish.tv_sec * 1000000000LL + post_copy_finish.tv_nsec - vm_restart.tv_sec * 1000000000LL - vm_restart.tv_nsec);
+    }
+}
 void qemu_backup_main() {
     printf("Hello from the backup!\n");
     printf("src:  %s:%s\n", src_ip, src_control_port);
@@ -319,26 +347,21 @@ void qemu_backup_main() {
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
 
-    struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
-    clock_gettime(CLOCK_MONOTONIC, &before_migrate);
-    write_to_file(srcfd, "qemu_migrate");
+    FILE *pid_file = fopen("./controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
 
-    read_from_file(srcfd, sizeof("qemu_pre_copy_finish"), buff);
-    assert(strcmp(buff, "qemu_pre_copy_finish") == 0);
-    clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
-    printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+    if (signal(SIGUSR1, signal_handler_backup) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
 
-    read_from_file(dstfd, sizeof("qemu_vm_restart"), buff);
-    printf("asd123www: %s\n", buff);
-    assert(strcmp(buff, "qemu_vm_restart") == 0);
-    clock_gettime(CLOCK_MONOTONIC, &vm_restart);
-
-    read_from_file(dstfd, sizeof("qemu_post_copy_finish"), buff);
-    assert(strcmp(buff, "qemu_post_copy_finish") == 0);
-    clock_gettime(CLOCK_MONOTONIC, &post_copy_finish);
-
-    printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
-    printf("post-copy duration: %lld ns\n", post_copy_finish.tv_sec * 1000000000LL + post_copy_finish.tv_nsec - vm_restart.tv_sec * 1000000000LL - vm_restart.tv_nsec);
+    // keeps the program alive
+    while(1) {
+        sleep(1);
+    }
 }
 
 
@@ -446,6 +469,39 @@ void shm_dst_main() {
     }
 }
 
+void signal_handler_shm_backup(int signal) {
+    if (signal == SIGUSR1) {
+        printf("backup: Received SIGUSR1 signal\n");
+        sleep(5);
+
+        struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
+        clock_gettime(CLOCK_MONOTONIC, &before_migrate);
+        write_to_file(srcfd, "shm_migrate");
+        write_to_file(srcfd, "shm_migrate_switchover");
+        // Zezhou: this is a little bit tricky.
+        //    So if we don't know who is the destination, then we can't start the target VM.
+        //    But can't we start a target VM in all machines? Because OS does lazy allocation.
+        //    Actually there is no resouce allocated.
+        usleep(1000); // wait some time for src runtime image be ready.
+        write_to_file(dstfd, "start_target_vm");
+
+        read_from_file(srcfd, sizeof("shm_pre_copy_finish"), buff);
+        assert(strcmp(buff, "shm_pre_copy_finish") == 0);
+        clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
+        printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+
+        read_from_file(srcfd, sizeof("complete_vm_image"), buff);
+        assert(strcmp(buff, "complete_vm_image") == 0);
+
+        write_to_file(dstfd, "shm_load_vm_image");
+        read_from_file(dstfd, sizeof("switchover_finished"), buff);
+        assert(strcmp(buff, "switchover_finished") == 0);
+        clock_gettime(CLOCK_MONOTONIC, &vm_restart);
+
+        printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
+    }
+}
+
 // simulate a control plane.
 void shm_backup_main() {
     printf("Hello from the shm_backup!\n");
@@ -454,31 +510,20 @@ void shm_backup_main() {
     srcfd = connect_wrapper(src_ip, src_control_port);
     dstfd = connect_wrapper(dst_ip, dst_control_port);
 
-    struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
-    clock_gettime(CLOCK_MONOTONIC, &before_migrate);
-    write_to_file(srcfd, "shm_migrate");
-    write_to_file(srcfd, "shm_migrate_switchover");
-    // Zezhou: this is a little bit tricky.
-    //    So if we don't know who is the destination, then we can't start the target VM.
-    //    But can't we start a target VM in all machines? Because OS does lazy allocation.
-    //    Actually there is no resouce allocated.
-    usleep(1000); // wait some time for src runtime image be ready.
-    write_to_file(dstfd, "start_target_vm");
 
-    read_from_file(srcfd, sizeof("shm_pre_copy_finish"), buff);
-    assert(strcmp(buff, "shm_pre_copy_finish") == 0);
-    clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
-    printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+    FILE *pid_file = fopen("./controller.pid", "w");
+    if (pid_file) {
+        fprintf(pid_file, "%d", getpid());
+        fclose(pid_file);
+    }
+    if (signal(SIGUSR1, signal_handler_shm_backup) == SIG_ERR) {
+        printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
+        exit(-1);
+    }
 
-    read_from_file(srcfd, sizeof("complete_vm_image"), buff);
-    assert(strcmp(buff, "complete_vm_image") == 0);
-
-    write_to_file(dstfd, "shm_load_vm_image");
-    read_from_file(dstfd, sizeof("switchover_finished"), buff);
-    assert(strcmp(buff, "switchover_finished") == 0);
-    clock_gettime(CLOCK_MONOTONIC, &vm_restart);
-
-    printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
+    while(1) {
+        sleep(1);
+    }
 }
 
 int main(int argc, char *argv[]) {

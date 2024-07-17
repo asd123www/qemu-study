@@ -31,4 +31,4 @@ fi
 # cd ..
 
 # start the VM
-$1  ./linux-$KERNEL_VER $SHARED_STORAGE $2 $3
+$1  ./linux-$KERNEL_VER $SHARED_STORAGE $2 $3 $VM_IP

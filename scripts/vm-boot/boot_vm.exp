@@ -6,6 +6,7 @@ set kernel_dir [lindex $argv 0]
 set driver_dir [lindex $argv 1]
 set cpu_num [lindex $argv 2]
 set memory_size [lindex $argv 3]
+set vm_ip [lindex $argv 4]
 
 #Start the guest VM
 spawn sudo qemu-system-x86_64 \
@@ -27,7 +28,7 @@ expect "syzkaller login: "
 send "root\r"
 
 expect "root@syzkaller:"
-send "ip addr add 10.10.1.100/24 dev eth0\r"
+send "ip addr add $vm_ip/24 dev eth0\r"
 
 expect "root@syzkaller:"
 send "cd stress-ng\r"
