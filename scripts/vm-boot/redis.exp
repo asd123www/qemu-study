@@ -9,7 +9,7 @@ set memory_size [lindex $argv 3]
 set vm_ip [lindex $argv 4]
 
 #Start the guest VM
-spawn sudo taskset -c 2-7 qemu-system-x86_64 \
+spawn sudo taskset -c 0-4 qemu-system-x86_64 \
 		--enable-kvm \
 		-cpu host \
 		-smp $cpu_num \

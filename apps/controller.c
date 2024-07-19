@@ -239,6 +239,7 @@ void qemu_src_main(bool flag) {
     }
 
     while (1) {
+        fflush(stdout);
         sleep(1);
     }
 }
@@ -307,6 +308,7 @@ void qemu_dst_main(bool flag) {
     connfd = listen_wrapper(dst_ip, dst_control_port);
 
     while (1) {
+        fflush(stdout);
         sleep(1);
     }
 }
@@ -315,7 +317,7 @@ void qemu_dst_main(bool flag) {
 
 void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
-        printf("backup: Received SIGUSR1 signal\n");
+        printf("backup: Received SIGUSR1 signal\n");fflush(stdout);
         sleep(4);
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
@@ -326,6 +328,7 @@ void signal_handler_backup(int signal) {
         assert(strcmp(buff, "qemu_pre_copy_finish") == 0);
         clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
         printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+        fflush(stdout);
 
         read_from_file(dstfd, sizeof("qemu_vm_restart"), buff);
         printf("asd123www: %s\n", buff);
@@ -342,6 +345,7 @@ void signal_handler_backup(int signal) {
 
         printf("Migration start: %lld ns\n", before_migrate.tv_sec * 1000000000LL + before_migrate.tv_nsec);
         printf("Migration end: %lld ns\n", post_copy_finish.tv_sec * 1000000000LL + post_copy_finish.tv_nsec);
+        fflush(stdout);
     }
 }
 void qemu_backup_main() {
@@ -364,6 +368,7 @@ void qemu_backup_main() {
 
     // keeps the program alive
     while(1) {
+        fflush(stdout);
         sleep(1);
     }
 }
@@ -375,6 +380,7 @@ void signal_handler_shm_src_complete(int signal) {
     if (signal == SIGUSR1) {
         assert(sigusr1_count);
         printf("shm_src: VM image is complete!\n");
+        fflush(stdout);
         write_to_file(connfd, "complete_vm_image");
         execute_wrapper("echo \"q\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
     }
@@ -382,6 +388,7 @@ void signal_handler_shm_src_complete(int signal) {
 void signal_handler_shm_src_precopy(int signal) {
     if (signal == SIGUSR2) {
         printf("shm_src: pre-copy has finished!\n");
+        fflush(stdout);
         write_to_file(connfd, "shm_pre_copy_finish");
         sigusr1_count = 1;
     }
@@ -422,6 +429,7 @@ void shm_src_main() {
     execute_wrapper("echo \"shm_migrate_switchover\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
 
     while(1) {
+        fflush(stdout);
         sleep(1);
     }
 }
@@ -432,6 +440,7 @@ void signal_handler_shm_dst(int signal) {
         write_to_file(connfd, "switchover_finished");
         clock_gettime(CLOCK_MONOTONIC, &end);
         printf("\n\ndst load VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
+        fflush(stdout);
     }
 }
 void shm_dst_main() {
@@ -469,6 +478,7 @@ void shm_dst_main() {
     }
 
     while (1) {
+        fflush(stdout);
         sleep(1);
     }
 }
@@ -493,6 +503,7 @@ void signal_handler_shm_backup(int signal) {
         assert(strcmp(buff, "shm_pre_copy_finish") == 0);
         clock_gettime(CLOCK_MONOTONIC, &pre_copy_finish);
         printf("pre-copy duration: %lld ns\n", pre_copy_finish.tv_sec * 1000000000LL + pre_copy_finish.tv_nsec - before_migrate.tv_sec * 1000000000LL - before_migrate.tv_nsec);
+        fflush(stdout);
 
         read_from_file(srcfd, sizeof("complete_vm_image"), buff);
         assert(strcmp(buff, "complete_vm_image") == 0);
@@ -505,6 +516,7 @@ void signal_handler_shm_backup(int signal) {
         printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
         printf("Migration start: %lld ns\n", before_migrate.tv_sec * 1000000000LL + before_migrate.tv_nsec);
         printf("Migration end: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec);
+        fflush(stdout);
     }
 }
 
@@ -528,6 +540,7 @@ void shm_backup_main() {
     }
 
     while(1) {
+        fflush(stdout);
         sleep(1);
     }
 }
