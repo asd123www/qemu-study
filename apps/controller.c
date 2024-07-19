@@ -316,7 +316,7 @@ void qemu_dst_main(bool flag) {
 void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
-        sleep(5);
+        sleep(4);
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
         clock_gettime(CLOCK_MONOTONIC, &before_migrate);
@@ -338,6 +338,10 @@ void signal_handler_backup(int signal) {
 
         printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
         printf("post-copy duration: %lld ns\n", post_copy_finish.tv_sec * 1000000000LL + post_copy_finish.tv_nsec - vm_restart.tv_sec * 1000000000LL - vm_restart.tv_nsec);
+
+
+        printf("Migration start: %lld ns\n", before_migrate.tv_sec * 1000000000LL + before_migrate.tv_nsec);
+        printf("Migration end: %lld ns\n", post_copy_finish.tv_sec * 1000000000LL + post_copy_finish.tv_nsec);
     }
 }
 void qemu_backup_main() {
@@ -472,7 +476,7 @@ void shm_dst_main() {
 void signal_handler_shm_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
-        sleep(5);
+        sleep(4);
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
         clock_gettime(CLOCK_MONOTONIC, &before_migrate);
@@ -499,6 +503,8 @@ void signal_handler_shm_backup(int signal) {
         clock_gettime(CLOCK_MONOTONIC, &vm_restart);
 
         printf("vm downtime: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec - pre_copy_finish.tv_sec * 1000000000LL - pre_copy_finish.tv_nsec);
+        printf("Migration start: %lld ns\n", before_migrate.tv_sec * 1000000000LL + before_migrate.tv_nsec);
+        printf("Migration end: %lld ns\n", vm_restart.tv_sec * 1000000000LL + vm_restart.tv_nsec);
     }
 }
 
