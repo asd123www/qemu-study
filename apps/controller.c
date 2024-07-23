@@ -16,6 +16,7 @@
 
 
 #define MAX_LINE_LENGTH 255
+#define SLEEP_TIME 4
 
 int execute_wrapper(char *command) {
     char commandname[2048];
@@ -318,7 +319,7 @@ void qemu_dst_main(bool flag) {
 void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");fflush(stdout);
-        sleep(4);
+        sleep(SLEEP_TIME);
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
         clock_gettime(CLOCK_MONOTONIC, &before_migrate);
@@ -486,7 +487,7 @@ void shm_dst_main() {
 void signal_handler_shm_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
-        sleep(4);
+        sleep(SLEEP_TIME);
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
         clock_gettime(CLOCK_MONOTONIC, &before_migrate);

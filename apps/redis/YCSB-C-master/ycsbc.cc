@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
+#include <atomic>
 
 #include "core/utils.h"
 #include "core/timer.h"
@@ -27,8 +28,28 @@ void UsageMessage(const char *command);
 bool StrStartWith(const char *str, const char *pre);
 string ParseCommandLine(int argc, const char *argv[], utils::Properties &props);
 
+#define WARMUP 10
 
 std::vector<std::pair<std::pair<long long, long long>, int>> lat[100];
+
+std::atomic<bool> atomicBool(false); // Initialize the atomic boolean variable
+
+void notice_controller() {
+  // asd123www_impl: tell controller the start of the transaction.
+  FILE *pid_file = fopen("../../../controller.pid", "r");
+  printf("File state: %d\n", pid_file == NULL);
+  if (pid_file) {
+    pid_t controller_pid;
+    fscanf(pid_file, "%d", &controller_pid);
+    fclose(pid_file);
+
+    atomicBool.store(true);
+    if (kill(controller_pid, SIGUSR1) == -1) {
+      // perror("Error sending signal");
+      // exit(-1);
+    }
+  }
+}
 
 int DelegateClient(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bool is_loading, int idx) {
   db->Init();
@@ -42,12 +63,16 @@ int DelegateClient(ycsbc::DB *db, ycsbc::CoreWorkload *wl, const int num_ops, bo
     if (is_loading) {
       oks += client.DoInsert();
     } else {
-      clock_gettime(CLOCK_MONOTONIC, &start);
-      oks += client.DoTransaction();
-      clock_gettime(CLOCK_MONOTONIC, &end);
-      lat[idx].push_back(std::make_pair(make_pair(start.tv_sec * 1000000000LL + start.tv_nsec, 
+      if (atomicBool.load() == false) {
+        oks += client.DoTransaction();
+      } else {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        oks += client.DoTransaction();
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        lat[idx].push_back(std::make_pair(make_pair(start.tv_sec * 1000000000LL + start.tv_nsec, 
                                                   end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec),
-                                        idx));
+                                                  idx));
+      }
     }
   }
   db->Close();
@@ -91,20 +116,6 @@ int main(const int argc, const char *argv[]) {
   }
   cerr << "# Loading records:\t" << sum << endl;
 
-
-  // asd123www_impl: tell controller the start of the transaction.
-  FILE *pid_file = fopen("../../../controller.pid", "r");
-  printf("File state: %d\n", pid_file == NULL);
-  if (pid_file) {
-    pid_t controller_pid;
-    fscanf(pid_file, "%d", &controller_pid);
-    fclose(pid_file);
-    if (kill(controller_pid, SIGUSR1) == -1) {
-      // perror("Error sending signal");
-      // exit(-1);
-    }
-  }
-
   // Peforms transactions
   actual_ops.clear();
   total_ops = stoi(props[ycsbc::CoreWorkload::OPERATION_COUNT_PROPERTY]);
@@ -115,6 +126,12 @@ int main(const int argc, const char *argv[]) {
         DelegateClient, dbs[i], &wl, total_ops / num_threads, false, i));
   }
   assert((int)actual_ops.size() == num_threads);
+
+  // warmpup for 10 seconds.
+  puts("Warmup start.");fflush(stdout);
+  sleep(WARMUP);
+  puts("Warmup done.");fflush(stdout);
+  notice_controller();
 
   sum = 0;
   for (auto &n : actual_ops) {
