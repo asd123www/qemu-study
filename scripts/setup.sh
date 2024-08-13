@@ -16,6 +16,15 @@ sudo git submodule update
 
 sudo apt update
 
+# build voltdb
+cd apps/voltdb
+sudo apt install openjdk-8-jdk -y
+sudo apt -y install openjdk-8-jdk ant build-essential ant-optional valgrind ntp ccache cmake
+ant
+PATH="$PATH:$(pwd)/bin/"
+voltdb --version
+cd ../..
+
 # qemu dependency.
 sudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
 pip install redis

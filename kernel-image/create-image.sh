@@ -12,7 +12,7 @@ set -eux
 
 # Create a minimal Debian distribution in a directory.
 DIR=chroot
-PREINSTALL_PKGS=openssh-server,curl,tar,gcc,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
+PREINSTALL_PKGS=openssh-server,curl,tar,python3,ant,ant-optional,valgrind,ntp,ccache,cmake,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
 
 # If ADD_PACKAGE is not defined as an external environment variable, use our default packages
 if [ -z ${ADD_PACKAGE+x} ]; then
@@ -23,7 +23,7 @@ fi
 ARCH=$(uname -m)
 RELEASE=bullseye
 FEATURE=minimal
-SEEK=4097
+SEEK=6097
 PERF=false
 
 # Display help function
@@ -161,7 +161,7 @@ fi
 sudo sed -i '/^root/ { s/:x:/::/ }' $DIR/etc/passwd
 echo 'T0:23:respawn:/sbin/getty -L ttyS0 115200 vt100' | sudo tee -a $DIR/etc/inittab
 printf '\nauto eth0\niface eth0 inet dhcp\n' | sudo tee -a $DIR/etc/network/interfaces
-printf '\nauto eth1\niface eth1 inet dhcp\n' | sudo tee -a $DIR/etc/network/interfaces
+# printf '\nauto eth1\niface eth1 inet dhcp\n' | sudo tee -a $DIR/etc/network/interfaces
 echo '/dev/root / ext4 defaults 0 0' | sudo tee -a $DIR/etc/fstab
 echo 'debugfs /sys/kernel/debug debugfs defaults 0 0' | sudo tee -a $DIR/etc/fstab
 # echo 'securityfs /sys/kernel/security securityfs defaults 0 0' | sudo tee -a $DIR/etc/fstab
@@ -182,6 +182,7 @@ sudo cp -r ../apps/tcp/ $DIR/root/
 sudo cp -r ../apps/graph500/ $DIR/root/
 sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
+sudo cp -r ../apps/voltdb $DIR/root/voltdb
 
 # Add perf support
 if [ $PERF = "true" ]; then
