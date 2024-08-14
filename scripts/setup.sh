@@ -26,6 +26,8 @@ voltdb --version
 cd ../..
 
 # build wrk
+sudo apt install lua-socket luarocks -y
+sudo luarocks install luasocket
 cd apps/wrk
 sudo make -j 10
 sudo cp wrk /usr/local/bin
