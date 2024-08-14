@@ -183,6 +183,7 @@ sudo cp -r ../apps/graph500/ $DIR/root/
 sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
 sudo cp -r ../apps/voltdb $DIR/root/voltdb
+sudo cp -r ../apps/nginx $DIR/root/nginx
 
 # Add perf support
 if [ $PERF = "true" ]; then

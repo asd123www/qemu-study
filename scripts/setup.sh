@@ -25,6 +25,12 @@ PATH="$PATH:$(pwd)/bin/"
 voltdb --version
 cd ../..
 
+# build wrk
+cd apps/wrk
+sudo make -j 10
+sudo cp wrk /usr/local/bin
+cd ../..
+
 # qemu dependency.
 sudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
 pip install redis

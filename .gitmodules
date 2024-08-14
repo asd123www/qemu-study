@@ -8,3 +8,6 @@
 [submodule "apps/voltdb"]
 	path = apps/voltdb
 	url = https://github.com/asd123www/voltdb.git
+[submodule "apps/wrk"]
+	path = apps/wrk
+	url = https://github.com/wg/wrk.git
