@@ -18,11 +18,10 @@ sudo apt update
 
 # build voltdb
 cd apps/voltdb
-sudo apt install openjdk-8-jdk -y
-sudo apt -y install openjdk-8-jdk ant build-essential ant-optional valgrind ntp ccache cmake
-ant
-PATH="$PATH:$(pwd)/bin/"
-voltdb --version
+sudo apt install docker.io
+sudo docker build . -t voltdb
+sudo docker create --name voltdb-run voltdb
+docker cp voltdb-run:/opt/voltdb .
 cd ../..
 
 # build wrk
