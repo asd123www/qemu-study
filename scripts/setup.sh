@@ -21,6 +21,7 @@ sudo apt install maven -y
 # build ycsb
 cd apps/ycsb
 sudo mvn -pl site.ycsb:redis-binding -am clean package
+sudo mvn -pl site.ycsb:memcached-binding -am clean package
 cd ../..
 
 # build gapbs
