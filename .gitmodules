@@ -11,3 +11,6 @@
 [submodule "apps/ycsb"]
 	path = apps/ycsb
 	url = https://github.com/brianfrankcooper/YCSB.git
+[submodule "apps/gapbs/gapbs"]
+	path = apps/gapbs/gapbs
+	url = https://github.com/sbeamer/gapbs
