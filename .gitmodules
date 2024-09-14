@@ -8,3 +8,6 @@
 [submodule "apps/wrk"]
 	path = apps/wrk
 	url = https://github.com/wg/wrk.git
+[submodule "apps/ycsb"]
+	path = apps/ycsb
+	url = https://github.com/brianfrankcooper/YCSB.git

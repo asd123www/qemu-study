@@ -33,6 +33,15 @@ send "ip addr add $vm_ip/24 dev eth0\r"
 expect "root@syzkaller:"
 send "cd redis\r"
 
+# Start Redis servers on each core
+for {set i 0} {$i < $cpu_num} {incr i} {
+	set redis_port [expr $i + 12345]
+
+    expect "root@syzkaller:"
+    # Start Redis server on core $i
+    send "taskset -c $i redis-server redis-server.conf --port $redis_port\r"
+}
+
 expect "root@syzkaller:"
 send "taskset -c 0 redis-server redis-server.conf\r"
 

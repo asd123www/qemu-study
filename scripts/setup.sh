@@ -15,10 +15,17 @@ sudo git submodule init
 sudo git submodule update
 
 sudo apt update
+sudo apt install openjdk-8-jdk -y
+sudo apt install maven -y
+
+# build ycsb
+cd apps/ycsb
+mvn -pl site.ycsb:redis-binding -am clean package
+cd ../..
 
 # build voltdb
 cd apps/voltdb
-sudo apt install docker.io
+sudo apt install docker.io -y
 sudo docker build . -t voltdb
 sudo docker create --name voltdb-run voltdb
 docker cp voltdb-run:/opt/voltdb .

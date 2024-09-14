@@ -56,3 +56,4 @@ kernel-image/bull*
 kernel-image/chroot/
 linux*
 apps/controller
+apps/voltdb/voltdb
