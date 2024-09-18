@@ -31,8 +31,20 @@ expect "root@syzkaller:"
 send "ip addr add $vm_ip/24 dev eth0\r"
 
 expect "root@syzkaller:"
-send "/usr/bin/memcached -m $memory_size -p 12345 -u memcache -l $vm_ip -P /var/run/memcached/memcached.pid -t $cpu_num\r"
+send "cd redis\r"
+
+# Start Redis servers on each core
+for {set i 0} {$i < $cpu_num} {incr i} {
+	set redis_port [expr $i + 12345]
+
+    expect "root@syzkaller:"
+    # Start Redis server on core $i
+    send "taskset -c $i redis-server redis-server.conf --port $redis_port\r"
+}
+
+expect "root@syzkaller:"
+send "cd ..\r"
 
 interact
 
-# sudo ./bin/ycsb run memcached -s -P workloads/workloada -p "memcached.hosts=10.10.1.100:12345" > outputLoad.txt
+#Do whatever you want to do with in the guest VM. ( Run a process and write result to log )

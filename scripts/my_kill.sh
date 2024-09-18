@@ -18,3 +18,9 @@ if [[ "" !=  "$PID" ]]; then
   echo "Send signal to $PID"
   kill -9 $PID
 fi
+
+PID=`ps -eaf | grep ycsb | grep -v grep | awk '{print $2}'`
+if [[ "" !=  "$PID" ]]; then
+  echo "Send signal to $PID"
+  kill -9 $PID
+fi

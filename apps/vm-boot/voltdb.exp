@@ -9,7 +9,7 @@ set memory_size [lindex $argv 3]
 set vm_ip [lindex $argv 4]
 
 #Start the guest VM
-spawn sudo taskset -c 0-4 qemu-system-x86_64 \
+spawn sudo taskset -c 0,2,4,6,8,10,12,14,16,18 qemu-system-x86_64 \
 		--enable-kvm \
 		-cpu host \
 		-smp $cpu_num \
@@ -31,23 +31,14 @@ expect "root@syzkaller:"
 send "ip addr add $vm_ip/24 dev eth0\r"
 
 expect "root@syzkaller:"
-send "cd redis\r"
-
-# Start Redis servers on each core
-for {set i 0} {$i < $cpu_num} {incr i} {
-	set redis_port [expr $i + 12345]
-
-    expect "root@syzkaller:"
-    # Start Redis server on core $i
-    send "taskset -c $i redis-server redis-server.conf --port $redis_port\r"
-}
+send "cd voltdb/tests/test_apps/tpcc/\r"
 
 expect "root@syzkaller:"
-send "taskset -c 0 redis-server redis-server.conf\r"
-
-expect "root@syzkaller:"
-send "cd ..\r"
+send "bash run.sh\r"
 
 interact
 
 #Do whatever you want to do with in the guest VM. ( Run a process and write result to log )
+#under `/voltdb/tests/test_apps/tpcc` path.
+#sudo bash run.sh init /proj/xdp-PG0/qemu-study/config.txt
+#sudo bash run.sh client /proj/xdp-PG0/qemu-study/config.txt > /proj/xdp-PG0/qemu-study/output.txt

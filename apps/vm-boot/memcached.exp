@@ -8,6 +8,10 @@ set cpu_num [lindex $argv 2]
 set memory_size [lindex $argv 3]
 set vm_ip [lindex $argv 4]
 
+set size_in_gb [string trimright $memory_size "G"]
+set size_in_mb [expr {$size_in_gb * 1024 - 1024}]
+
+
 #Start the guest VM
 spawn sudo taskset -c 0-4 qemu-system-x86_64 \
 		--enable-kvm \
@@ -31,14 +35,8 @@ expect "root@syzkaller:"
 send "ip addr add $vm_ip/24 dev eth0\r"
 
 expect "root@syzkaller:"
-send "cd voltdb/tests/test_apps/tpcc/\r"
-
-expect "root@syzkaller:"
-send "bash run.sh\r"
+send "/usr/bin/memcached -m $size_in_mb -p 12345 -u memcache -l $vm_ip -P /var/run/memcached/memcached.pid -t $cpu_num\r"
 
 interact
 
-#Do whatever you want to do with in the guest VM. ( Run a process and write result to log )
-#under `/voltdb/tests/test_apps/tpcc` path.
-#sudo bash run.sh init /proj/xdp-PG0/qemu-study/config.txt
-#sudo bash run.sh client /proj/xdp-PG0/qemu-study/config.txt > /proj/xdp-PG0/qemu-study/output.txt
+# sudo ./bin/ycsb run memcached -s -P workloads/workloada -p "memcached.hosts=10.10.1.100:12345" > outputLoad.txt
