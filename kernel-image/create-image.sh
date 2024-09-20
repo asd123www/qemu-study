@@ -23,7 +23,7 @@ fi
 ARCH=$(uname -m)
 RELEASE=bullseye
 FEATURE=minimal
-SEEK=6097
+SEEK=358400
 PERF=false
 
 # Display help function
@@ -172,18 +172,18 @@ echo "nameserver 8.8.8.8" | sudo tee -a $DIR/etc/resolve.conf
 echo "syzkaller" | sudo tee $DIR/etc/hostname
 ssh-keygen -f $RELEASE.id_rsa -t rsa -N ''
 sudo mkdir -p $DIR/root/.ssh/
-cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
+# cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
+cat ~/.ssh/id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 
 # asd123www: Create the redis server configure file.
 sudo mkdir -p $DIR/root/redis/
 sudo cp ../apps/redis/redis-server.conf $DIR/root/redis/
-sudo cp -r ../apps/tcp/ $DIR/root/
-# sudo mkdir -p $DIR/root/stress-ng/
 sudo cp -r ../apps/graph500/ $DIR/root/
 sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
 sudo cp -r ../apps/voltdb/voltdb $DIR/root/voltdb
 sudo cp -r ../apps/nginx $DIR/root/nginx
+sudo cp -r ../apps/gapbs $DIR/root/
 
 # Add perf support
 if [ $PERF = "true" ]; then

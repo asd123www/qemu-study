@@ -27,7 +27,7 @@ cd ../..
 # build gapbs
 cd apps/gapbs/gapbs
 make
-# make bench-graphs
+make bench-graphs
 cd ../../..
 
 # build voltdb

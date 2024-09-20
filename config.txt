@@ -1,4 +1,4 @@
-SHARED_STORAGE=/mnt/mynvm/qemu-study/kernel-image
+SHARED_STORAGE=/mnt/mynvm/qemu-study
 KERNEL_VER=5.10.54
 NIC_NAME=ens2f0
 SRC_IP=10.10.1.2
