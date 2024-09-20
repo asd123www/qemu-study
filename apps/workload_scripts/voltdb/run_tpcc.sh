@@ -10,6 +10,7 @@ fi
 duration=$1
 warehouses=$2
 
+cd apps/voltdb/voltdb/tests/test_apps/tpcc
 sudo bash run.sh client $duration $warehouses $SHARED_STORAGE/config.txt
 
 echo "Finished VoltDB TPC-C benchmark."

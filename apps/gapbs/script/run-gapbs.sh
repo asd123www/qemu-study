@@ -13,8 +13,8 @@ RUNDIR="~/gapbs"
 GAPBS_RUN_DIR="$RUNDIR/gapbs"
 
 # GAPBS path, needed by cmd.sh scripts
-export GAPBS_DIR="~/gapbs/gapbs"
-export GAPBS_GRAPH_DIR="~/gapbs/gapbs/benchmark/graphs/"
+export GAPBS_DIR="/root/gapbs/gapbs"
+export GAPBS_GRAPH_DIR="/root/gapbs/gapbs/benchmark/graphs/"
 [[ ! -d "${GAPBS_DIR}" ]] && echo "${GAPBS_DIR} does not exist!" && exit
 [[ ! -d "${GAPBS_GRAPH_DIR}" ]] && echo "${GAPBS_GRAPH_DIR} does not exist!" && exit
 
@@ -38,10 +38,9 @@ LID=$2
 
 run_seq()
 {
-    print
     for id in 1 2 3 4 5; do
         cd "$warr"
-        sudo bash cmd.sh
+        bash cmd.sh
         cd ..
     done
     echo "run_seq_base Done!"
