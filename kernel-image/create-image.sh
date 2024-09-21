@@ -12,7 +12,7 @@ set -eux
 
 # Create a minimal Debian distribution in a directory.
 DIR=chroot
-PREINSTALL_PKGS=openssh-server,curl,tar,python3,ant,ant-optional,valgrind,ntp,ccache,cmake,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
+PREINSTALL_PKGS=openssh-server,curl,ssh,maven,pdsh,tar,bc,scala,python2,python3,valgrind,ntp,ccache,cmake,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
 
 # If ADD_PACKAGE is not defined as an external environment variable, use our default packages
 if [ -z ${ADD_PACKAGE+x} ]; then
@@ -161,13 +161,13 @@ fi
 sudo sed -i '/^root/ { s/:x:/::/ }' $DIR/etc/passwd
 echo 'T0:23:respawn:/sbin/getty -L ttyS0 115200 vt100' | sudo tee -a $DIR/etc/inittab
 printf '\nauto eth0\niface eth0 inet dhcp\n' | sudo tee -a $DIR/etc/network/interfaces
-# printf '\nauto eth1\niface eth1 inet dhcp\n' | sudo tee -a $DIR/etc/network/interfaces
+printf '\nauto eth1\niface eth1 inet dhcp\n' | sudo tee -a $DIR/etc/network/interfaces
 echo '/dev/root / ext4 defaults 0 0' | sudo tee -a $DIR/etc/fstab
 echo 'debugfs /sys/kernel/debug debugfs defaults 0 0' | sudo tee -a $DIR/etc/fstab
 # echo 'securityfs /sys/kernel/security securityfs defaults 0 0' | sudo tee -a $DIR/etc/fstab
 # echo 'configfs /sys/kernel/config/ configfs defaults 0 0' | sudo tee -a $DIR/etc/fstab
 echo 'binfmt_misc /proc/sys/fs/binfmt_misc binfmt_misc defaults 0 0' | sudo tee -a $DIR/etc/fstab
-echo -en "127.0.0.1\tlocalhost\n" | sudo tee $DIR/etc/hosts
+echo -en "127.0.0.1\tlocalhost\n127.0.0.1\tsyzkaller\n" | sudo tee $DIR/etc/hosts
 echo "nameserver 8.8.8.8" | sudo tee -a $DIR/etc/resolve.conf
 echo "syzkaller" | sudo tee $DIR/etc/hostname
 ssh-keygen -f $RELEASE.id_rsa -t rsa -N ''
@@ -175,7 +175,8 @@ sudo mkdir -p $DIR/root/.ssh/
 # cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 cat ~/.ssh/id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 
-# asd123www: Create the redis server configure file.
+# asd123www: cp to vm disk since we don't have network to the internet...
+sudo cp -r /usr/lib/jvm/* $DIR/usr/lib/jvm/
 sudo mkdir -p $DIR/root/redis/
 sudo cp ../apps/redis/redis-server.conf $DIR/root/redis/
 sudo cp -r ../apps/graph500/ $DIR/root/
@@ -183,7 +184,8 @@ sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
 sudo cp -r ../apps/voltdb/voltdb $DIR/root/voltdb
 sudo cp -r ../apps/nginx $DIR/root/nginx
-sudo cp -r ../apps/gapbs $DIR/root/
+# sudo cp -r ../apps/gapbs $DIR/root/
+sudo cp -r ../apps/spark $DIR/root/
 
 # Add perf support
 if [ $PERF = "true" ]; then
