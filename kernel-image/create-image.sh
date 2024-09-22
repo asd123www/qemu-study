@@ -12,7 +12,7 @@ set -eux
 
 # Create a minimal Debian distribution in a directory.
 DIR=chroot
-PREINSTALL_PKGS=openssh-server,curl,ssh,maven,pdsh,tar,bc,scala,python2,python3,valgrind,ntp,ccache,cmake,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
+PREINSTALL_PKGS=openssh-server,curl,wget,ssh,maven,pdsh,tar,bc,scala,python2,python3,valgrind,ntp,ccache,cmake,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
 
 # If ADD_PACKAGE is not defined as an external environment variable, use our default packages
 if [ -z ${ADD_PACKAGE+x} ]; then
@@ -184,7 +184,7 @@ sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
 sudo cp -r ../apps/voltdb/voltdb $DIR/root/voltdb
 sudo cp -r ../apps/nginx $DIR/root/nginx
-# sudo cp -r ../apps/gapbs $DIR/root/
+sudo cp -r ../apps/gapbs $DIR/root/
 sudo cp -r ../apps/spark $DIR/root/
 
 # Add perf support

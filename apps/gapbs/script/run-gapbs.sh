@@ -48,7 +48,6 @@ run_seq()
 
 main()
 {
-    # enumearte from 0 to 10.
     for LID in $(seq 1 30); do
         warr=($(cat $wf | head -n $LID | tail -n 1 | grep -v "^#" | awk '{print $1}'))
         marr=($(cat $wf | head -n $LID | tail -n 1 | grep -v "^#" | awk '{print $2}'))

@@ -14,7 +14,7 @@ source /etc/environment
 # source /etc/environment
 
 cd ~/spark
-# wget https://archive.apache.org/dist/hadoop/common/hadoop-3.2.4/hadoop-3.2.4.tar.gz
+wget https://archive.apache.org/dist/hadoop/common/hadoop-3.2.4/hadoop-3.2.4.tar.gz
 tar -xzvf hadoop-3.2.4.tar.gz
 mv hadoop-3.2.4 hadoop
 
@@ -106,7 +106,7 @@ cat >> etc/hadoop/yarn-site.xml <<- End
 End
 
 cd ~/spark
-# wget https://archive.apache.org/dist/spark/spark-2.4.0/spark-2.4.0-bin-hadoop2.7.tgz
+wget https://archive.apache.org/dist/spark/spark-2.4.0/spark-2.4.0-bin-hadoop2.7.tgz
 tar -xzvf spark-2.4.0-bin-hadoop2.7.tgz
 mv spark-2.4.0-bin-hadoop2.7 spark
 cd spark
@@ -124,7 +124,7 @@ source ~/.bashrc
 # source ~/.bashrc
 
 cd ~/spark
-# wget https://github.com/Intel-bigdata/HiBench/archive/refs/tags/v7.1.1.tar.gz
+wget https://github.com/Intel-bigdata/HiBench/archive/refs/tags/v7.1.1.tar.gz
 tar -xzvf v7.1.1.tar.gz
 mv HiBench-7.1.1 HiBench
 cd HiBench
@@ -139,9 +139,9 @@ mv ./pom.xml.tmp hadoopbench/mahout/pom.xml
 
 mvn -Phadoopbench -Psparkbench -Dspark=2.4 -Dscala=2.11 clean package
 cp conf/hadoop.conf.template conf/hadoop.conf
-sed -i "s|^hibench.hadoop.home.*|hibench.hadoop.home ~/spark/spark/hadoop|" conf/hadoop.conf
-echo "hibench.hadoop.examples.jar ~/spark/spark/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.4.jar" >> conf/hadoop.conf
-echo "hibench.hadoop.examples.test.jar ~/spark/spark/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-3.2.4-tests.jar" >> conf/hadoop.conf
+sed -i "s|^hibench.hadoop.home.*|hibench.hadoop.home ~/spark/hadoop|" conf/hadoop.conf
+echo "hibench.hadoop.examples.jar ~/spark/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.4.jar" >> conf/hadoop.conf
+echo "hibench.hadoop.examples.test.jar ~/spark/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-3.2.4-tests.jar" >> conf/hadoop.conf
 
 cp conf/spark.conf.template conf/spark.conf
 sed -i "s|hibench.spark.home.*|hibench.spark.home ~/spark/spark|" conf/spark.conf
