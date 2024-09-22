@@ -24,6 +24,7 @@ for ((i=0; i<vCPUs; i++)); do
                                 -p "redis.host=$VM_IP" \
                                 -p "redis.port=$result" \
                                 -p "operationcount=$operationcount" \
+                                -p status.interval=1 \
                                 2>&1 | sed "s/^/[client $i] /" &
 done
 
