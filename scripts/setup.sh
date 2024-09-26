@@ -48,11 +48,10 @@ cd ../..
 
 # qemu dependency.
 sudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
-pip install redis
 sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.
-sudo apt-get install git-email -y
+# sudo apt-get install git-email -y
 sudo apt-get install libaio-dev libbluetooth-dev libcapstone-dev libbrlapi-dev libbz2-dev -y
 sudo apt-get install libcap-ng-dev libcurl4-gnutls-dev libgtk-3-dev -y
 sudo apt-get install libibverbs-dev libjpeg8-dev libncurses5-dev libnuma-dev -y

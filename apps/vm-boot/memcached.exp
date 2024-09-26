@@ -7,13 +7,15 @@ set driver_dir [lindex $argv 1]
 set cpu_num [lindex $argv 2]
 set memory_size [lindex $argv 3]
 set vm_ip [lindex $argv 4]
+set cpu_set [lindex $argv 5]
 
 set size_in_gb [string trimright $memory_size "G"]
 set size_in_mb [expr {$size_in_gb * 1024 - 1024}]
 
 
 #Start the guest VM
-spawn sudo taskset -c 0-4 qemu-system-x86_64 \
+spawn sudo taskset -c $cpu_set \
+		qemu-system-x86_64 \
 		--enable-kvm \
 		-cpu host \
 		-smp $cpu_num \

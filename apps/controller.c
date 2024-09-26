@@ -156,7 +156,7 @@ char src_ip[IP_LEN], dst_ip[IP_LEN], backup_ip[IP_LEN], vm_ip[IP_LEN];
 char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT_LEN], backup_control_port[PORT_LEN];
 char buff[DATA_LEN];
 struct timespec start, end;
-char max_bandwidth[256], bench_script[256], cpu_num[256], memory_size[256], output_file[256];
+char max_bandwidth[256], bench_script[256], cpu_num[256], memory_size[256], output_file[256], duration[256];
 
 char startString[15] = "start migration";
 char endString[15] =   "ended migration";
@@ -423,7 +423,8 @@ void shm_src_main() {
 
     read_from_file(connfd, sizeof("shm_migrate"), buff);
     assert(strcmp(buff, "shm_migrate") == 0);
-    execute_wrapper("echo \"shm_migrate /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
+    sprintf(instr, "echo \"shm_migrate /my_shared_memory 10 %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", duration);
+    execute_wrapper(instr);
 
     read_from_file(connfd, sizeof("shm_migrate_switchover"), buff);
     assert(strcmp(buff, "shm_migrate_switchover") == 0);
@@ -568,10 +569,10 @@ int main(int argc, char *argv[]) {
     // migration mode.
     if (strcmp(argv[1], "shm") == 0) {
         if (strcmp(argv[2], "src") == 0) {
-            if (argc < 7) {
+            if (argc < 8) {
                 printf("Usage: %s shm src\n", argv[0]);
                 printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
-                printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
+                printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`> <target write-through iteration time in us: e.g. 100000>\n");
                 return 1;
             }
             printf("benchmark script: %s\n", argv[3]);
@@ -582,6 +583,7 @@ int main(int argc, char *argv[]) {
             strcpy(cpu_num, argv[4]);
             strcpy(memory_size, argv[5]);
             strcpy(output_file, argv[6]);
+            strcpy(duration, argv[7]);
             shm_src_main();
         } else if (strcmp(argv[2], "dst") == 0) {
             if (argc < 6) {

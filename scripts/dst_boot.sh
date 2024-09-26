@@ -16,4 +16,4 @@ else
 fi
 
 # start the VM
-./scripts/vm-boot/incoming.exp ./linux-$KERNEL_VER $SHARED_STORAGE/kernel-image $1 $2
+./apps/vm-boot/incoming.exp ./linux-$KERNEL_VER $SHARED_STORAGE/kernel-image $1 $2 $DST_CPUSET
