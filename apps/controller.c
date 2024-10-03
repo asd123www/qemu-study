@@ -16,7 +16,6 @@
 
 
 #define MAX_LINE_LENGTH 255
-#define SLEEP_TIME 4
 
 int execute_wrapper(char *command) {
     char commandname[2048];
@@ -157,6 +156,7 @@ char migration_port[PORT_LEN], src_control_port[PORT_LEN], dst_control_port[PORT
 char buff[DATA_LEN];
 struct timespec start, end;
 char max_bandwidth[256], bench_script[256], cpu_num[256], memory_size[256], output_file[256], duration[256];
+char write_through_duration[256];
 
 char startString[15] = "start migration";
 char endString[15] =   "ended migration";
@@ -319,7 +319,9 @@ void qemu_dst_main(bool flag) {
 void signal_handler_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");fflush(stdout);
-        sleep(SLEEP_TIME);
+
+        printf("The wait to migrate duration is %d\n", atoi(write_through_duration));
+        sleep(atoi(write_through_duration));
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
         clock_gettime(CLOCK_MONOTONIC, &before_migrate);
@@ -488,11 +490,13 @@ void shm_dst_main() {
 void signal_handler_shm_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");
-        sleep(SLEEP_TIME);
+        write_to_file(srcfd, "shm_migrate");
+
+        printf("The write-through duration is %d\n", atoi(write_through_duration));
+        sleep(atoi(write_through_duration));
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
         clock_gettime(CLOCK_MONOTONIC, &before_migrate);
-        write_to_file(srcfd, "shm_migrate");
         write_to_file(srcfd, "shm_migrate_switchover");
         // Zezhou: this is a little bit tricky.
         //    So if we don't know who is the destination, then we can't start the target VM.
@@ -599,7 +603,13 @@ int main(int argc, char *argv[]) {
             strcpy(output_file, argv[5]);
             shm_dst_main();
         } else {
+            if (argc < 4) {
+                printf("Usage: %s shm backup\n", argv[0]);
+                printf("          <write through duration in seconds>\n");
+                return 1;
+            }
             assert(strcmp(argv[2], "backup") == 0);
+            strcpy(write_through_duration, argv[3]);
             shm_backup_main();
         }
     } else {
@@ -608,7 +618,7 @@ int main(int argc, char *argv[]) {
 
         if (strcmp(argv[2], "src") == 0) {
             if (argc < 8) {
-                printf("Usage: %s shm src\n", argv[0]);
+                printf("Usage: %s qemu- src\n", argv[0]);
                 printf("          <benchmark script: e.g. `scripts/vm-boot/boot_vm.exp`> <# of vCPU: e.g. `4`>\n");
                 printf("          <memory size: e.g. `8G`> <output file name: e.g. `vm_round1`>\n");
                 printf("          <max-bandwidth: e.g. 1342177280B>\n");
@@ -627,7 +637,7 @@ int main(int argc, char *argv[]) {
             qemu_src_main(flag);
         } else if (strcmp(argv[2], "dst") == 0) {
             if (argc < 7) {
-                printf("Usage: %s shm dst\n", argv[0]);
+                printf("Usage: %s qemu- dst\n", argv[0]);
                 printf("          <# of vCPU: e.g. `4`> <memory size: e.g. `8G`>\n");
                 printf("          <output file name: e.g. `vm_round1`> <max-bandwidth: e.g. 1342177280B>\n");
                 return 1;
@@ -642,7 +652,13 @@ int main(int argc, char *argv[]) {
             strcpy(max_bandwidth, argv[6]);
             qemu_dst_main(flag);
         } else {
+            if (argc < 4) {
+                printf("Usage: %s qemu- backup\n", argv[0]);
+                printf("          <wait to start migrate duration in seconds>\n");
+                return 1;
+            }
             assert(strcmp(argv[2], "backup") == 0);
+            strcpy(write_through_duration, argv[3]);
             qemu_backup_main();
         }
     }

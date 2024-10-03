@@ -125,10 +125,10 @@ ip_addr=$(ip addr show $NIC_NAME | grep "inet\b" | awk '{print $2}' | cut -d/ -f
 sudo ip addr flush dev $NIC_NAME
 sudo ip addr add $ip_addr/24 brd + dev br0
 # tap0 for src, tap1 for dst.
-sudo ip tuntap add dev tap0 mode tap
+sudo ip tuntap add dev tap0 mode tap multi_queue
 sudo ip link set dev tap0 up
 sudo ip link set tap0 master br0
-sudo ip tuntap add dev tap1 mode tap
+sudo ip tuntap add dev tap1 mode tap multi_queue
 sudo ip link set dev tap1 up
 sudo ip link set tap1 master br0
 

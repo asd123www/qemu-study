@@ -19,12 +19,8 @@ tc-road 588
 bc-kron 19930
 bfs-kron 18161
 cc-kron 18161
-pr-kron 18161
-sssp-kron 35396
-tc-kron 38368
 bc-urand 20484
 bfs-urand 18434
 cc-urand 18434
 pr-urand 18435
-sssp-urand 37422
 tc-urand 18434

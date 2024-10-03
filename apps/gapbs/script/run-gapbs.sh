@@ -48,6 +48,8 @@ run_seq()
 
 main()
 {
+    # we deleted `pr-kron 18161`, `sssp-kron 35396`, `tc-kron 38368`, and `sssp-urand 37422`.
+    # because it will crash with 8vcpus and 31G memory.
     for LID in $(seq 1 30); do
         warr=($(cat $wf | head -n $LID | tail -n 1 | grep -v "^#" | awk '{print $1}'))
         marr=($(cat $wf | head -n $LID | tail -n 1 | grep -v "^#" | awk '{print $2}'))
@@ -59,4 +61,4 @@ main()
 main
 
 # ssh-keygen -R $VM_IP
-# ssh root@10.10.1.100
+# ssh -o "StrictHostKeyChecking no" root@10.10.1.100
