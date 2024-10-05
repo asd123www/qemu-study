@@ -23,28 +23,27 @@ def run_sync(node, path, command):
 
 
 def bench(mode, vm_path, duration):
-    vcpus = 8
-    memory = "31G"
+    vcpus = 4
+    memory = "15G"
 
-    # run_async(src, "/mnt/mynvm/qemu-study/kernel-image/", "sudo bash create-image.sh")
-
-    src_command = f"./apps/controller shm src apps/vm-boot/boot_vm.exp {vcpus} {memory} {vm_path} {duration}"
+    src_command = f"./apps/controller shm src apps/vm-boot/port_fwd.exp {vcpus} {memory} {vm_path} {duration}"
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
-    sleep(100)
-
-    # start migration thread.
+    sleep(80)
+    run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
+    sleep(3)
 
     if mode == "shm":
-        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 32 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
+        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
 
     ssh_command = f"""
-        ssh root@10.10.1.100 << 'ENDSSH'
+        ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'
         echo "Connected to second server"
         # Place your commands here
-        cd gapbs/script/
-        bash run-gapbs.sh w.txt
+        cd spark/
+        bash setup.sh
+        bash run.sh w.txt
         exit
         ENDSSH
         """
@@ -66,4 +65,4 @@ if __name__ == "__main__":
 
     bench(mode, vm_path, duration)
 
-# python3 gapbs_write_through.py normal vm_gapbs_normal.txt 0 > workload_gapbs_output.txt
+# python3 spark_write_through.py normal vm_spark_normal.txt 0 > workload_spark_normal.txt

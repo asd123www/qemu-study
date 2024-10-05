@@ -24,7 +24,7 @@ def run_sync(node, path, command):
 
 def bench(mode, vm_path, clt_path, duration):
     vcpus = 4
-    memory = "8G"
+    memory = "15G"
     wrk_thread = 1
     wrk_connections = 120
     benchmark_time = 100
@@ -34,9 +34,9 @@ def bench(mode, vm_path, clt_path, duration):
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
-    sleep(100)
-
-    # start migration thread.
+    sleep(80)
+    run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
+    sleep(3)
 
     if mode == "shm":
         run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")

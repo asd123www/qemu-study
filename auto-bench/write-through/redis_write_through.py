@@ -13,32 +13,6 @@ import invoke
 import sys
 # pip install Fabric
 
-def init_machine(node):
-    # clone repo from github.
-    node.run("rm -rf qemu-study/")
-    node.run("git clone git@github.com:asd123www/qemu-study.git")
-
-    # Prepare kernel.
-    with node.cd("qemu-study/"):
-        node.run("pwd")
-        node.run("sudo bash setup.sh")
-
-def kill_machine(node):
-    with node.cd("qemu-study/"):
-        node.run("sudo bash my_kill.sh")
-
-def control_machine(servers, func):
-    for node in servers: func(node)
-def control_machine_parallel(servers, func):
-    replica_process = []
-    for (i, node) in enumerate(servers):
-        p = Thread(target = func, args=(node, ))
-        p.start()
-        replica_process.append(p)
-    for p in replica_process: p.join()
-
-
-
 def run_async(node, path, command):
     with node.cd(path):
         return node.run(command, asynchronous = True, pty = True) # non-blocking
@@ -52,7 +26,7 @@ def bench(mode, vm_path, clt_path, duration):
     vcpus = 4
     memory = "15G"
     recordcount = 1700000
-    operationcount = 20000000
+    operationcount = 10000000
 
     src_command = f"./apps/controller shm src apps/vm-boot/redis.exp {vcpus} {memory} {vm_path} {duration}"
     client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {vcpus} {recordcount} 8"
@@ -60,9 +34,9 @@ def bench(mode, vm_path, clt_path, duration):
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
-    sleep(100)
-
-    # start migration thread.
+    sleep(80)
+    run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
+    sleep(3)
 
     if mode == "shm":
         run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")

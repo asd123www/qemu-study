@@ -13,32 +13,6 @@ import invoke
 import sys
 # pip install Fabric
 
-def init_machine(node):
-    # clone repo from github.
-    node.run("rm -rf qemu-study/")
-    node.run("git clone git@github.com:asd123www/qemu-study.git")
-
-    # Prepare kernel.
-    with node.cd("qemu-study/"):
-        node.run("pwd")
-        node.run("sudo bash setup.sh")
-
-def kill_machine(node):
-    with node.cd("qemu-study/"):
-        node.run("sudo bash my_kill.sh")
-
-def control_machine(servers, func):
-    for node in servers: func(node)
-def control_machine_parallel(servers, func):
-    replica_process = []
-    for (i, node) in enumerate(servers):
-        p = Thread(target = func, args=(node, ))
-        p.start()
-        replica_process.append(p)
-    for p in replica_process: p.join()
-
-
-
 def run_async(node, path, command):
     with node.cd(path):
         return node.run(command, asynchronous = True, pty = True) # non-blocking
@@ -55,9 +29,10 @@ def bench(mode, vm_path, clt_path, duration):
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
-    sleep(100)
+    sleep(80)
+    run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
+    sleep(3)
 
-    # start migration thread.
     if mode == "shm":
         run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
     
@@ -66,7 +41,7 @@ def bench(mode, vm_path, clt_path, duration):
     run_sync(client, "/mnt/mynvm/qemu-study/", "sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100")
 
     ssh_command = f"""
-        ssh root@10.10.1.100 << 'ENDSSH'
+        ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'
         echo "Connected to second server"
         # Place your commands here
         cd ~/voltdb/tests/test_apps/tpcc/

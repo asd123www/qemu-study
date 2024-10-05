@@ -13,32 +13,6 @@ import invoke
 import sys
 # pip install Fabric
 
-def init_machine(node):
-    # clone repo from github.
-    node.run("rm -rf qemu-study/")
-    node.run("git clone git@github.com:asd123www/qemu-study.git")
-
-    # Prepare kernel.
-    with node.cd("qemu-study/"):
-        node.run("pwd")
-        node.run("sudo bash setup.sh")
-
-def kill_machine(node):
-    with node.cd("qemu-study/"):
-        node.run("sudo bash my_kill.sh")
-
-def control_machine(servers, func):
-    for node in servers: func(node)
-def control_machine_parallel(servers, func):
-    replica_process = []
-    for (i, node) in enumerate(servers):
-        p = Thread(target = func, args=(node, ))
-        p.start()
-        replica_process.append(p)
-    for p in replica_process: p.join()
-
-
-
 def run_async(node, path, command):
     with node.cd(path):
         return node.run(command, asynchronous = True, pty = True) # non-blocking
@@ -56,18 +30,20 @@ def bench(mode, vm_path, clt_path, duration):
 
     src_command = f"./apps/controller shm src apps/vm-boot/memcached.exp {vcpus} {memory} {vm_path} {duration}"
     client_init_command = f"sudo bash apps/workload_scripts/memcached/load_ycsb.sh 32 {recordcount}"
-    client_run_command = f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh 24 {operationcount} > {clt_path}"
+    client_run_command = f"sudo taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64 bash apps/workload_scripts/memcached/run_ycsb.sh 32 {operationcount} > {clt_path}"
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
-    sleep(100)
+    sleep(80)
+    run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
+    sleep(3)
 
-    # start migration thread.
-    run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
+    if mode == "shm":
+        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
 
     # warmup.
     run_sync(client, "/mnt/mynvm/qemu-study/", client_init_command)
-    run_sync(client, "/mnt/mynvm/qemu-study/", f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh 8 {operationcount}")
+    run_sync(client, "/mnt/mynvm/qemu-study/", f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh 32 {operationcount}")
 
     # experimental result.
     run_sync(client, "/mnt/mynvm/qemu-study/", client_run_command)

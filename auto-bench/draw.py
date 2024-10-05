@@ -124,8 +124,53 @@ def latency_dot_graph(direc, filename, THREASHOLD):
     print("\n")
 
 
+def draw_frequency_control_ceiling_graph(points, ceiling):
+    x, y = zip(*points)
+
+    # Calculate percentages relative to 44000
+    percentage = [val / ceiling * 100 for val in y]
+
+    # Create the figure and axis
+    plt.figure(figsize=(10, 6))
+
+    # Plot the original data points
+    plt.plot(x, y, marker='o', label='Data Points')
+
+    # Plot the parallel line at y = 44000
+    plt.axhline(y=ceiling, color='r', linestyle='--', label='without migration')
+
+    # Annotate each point with its percentage
+    for i, (xi, yi) in enumerate(points):
+        plt.text(xi, yi, f"{percentage[i]:.1f}%", ha='left', va='bottom', fontsize=13)
+
+    # Set labels and title
+    plt.xlabel('Sleep time in milliseconds')
+    plt.ylabel('Throughput')
+    plt.title('Memcached')
+
+    # plt.ylim(35000, 45000)
+
+    # Add a legend
+    plt.legend()
+
+    # Show the plot
+    plt.grid(True)
+    plt.show()
+
+
 
 if __name__ == "__main__":
+    voltdb_normal_thro = 44011.37
+    voltdb_points = [(1, 36257.43), (50, 40462.93), (100, 41482.28), (200, 42172.21), (300, 42534.67), (500, 43095.40), (1000, 42928.70)]
+
+    redis_normal_thro = 410972.7855580558
+    redis_points = [(1, 360178.6163858265), (50, 394311.88866804313), (100, 399354.4675592487), (200, 400513.8822532985), (300, 402469.7689249142), (500, 404037.54722305003)]
+
+    memcached_normal_thro = 370747.9840578367
+    memcached_points = [(1, 317218.627077782), (50, 357794.55436688254), (100, 358879.5779576163), (200, 362345.09747083124), (300, 363834.81899217755), (400, 363431.52041576564), (500, 363517.3943073176)]
+    draw_frequency_control_ceiling_graph(memcached_points, memcached_normal_thro)
+
+
     direc = "tmp/"
     txt_files = [f for f in os.listdir(direc) if f.endswith('.txt')]
     # latency_dot_graph(direc, "post_copy_preemption_1.txt", THREASHOLD=1000)
