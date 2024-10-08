@@ -17,7 +17,13 @@ THREADS=`ps -L -o pid,tid,comm -p $QEMU_PID | grep -E 'qemu-system-x86' | awk '{
 echo QEMU pid: $QEMU_PID
 echo QEMU Threads: $THREADS
 
-numbers=$(echo "$SRC_CPUSET" | tr ',' ' ')
+if [ "$1" == "src" ]; then
+    numbers=$(echo "$SRC_CPUSET" | tr ',' ' ')
+elif [ "$1" == "dst" ]; then
+    numbers=$(echo "$DST_CPUSET" | tr ',' ' ')
+else
+    echo "Invalid parameter. Use 'src' or 'dst'."
+    exit 1
 cpu_cores=($numbers)
 
 iter=0

@@ -1,4 +1,4 @@
-durations=(500000)
+durations=(500000 1000000 2000000)
 for duration in "${durations[@]}"
 do
     ms_duration=$((duration / 1000))
