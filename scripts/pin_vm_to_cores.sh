@@ -24,6 +24,8 @@ elif [ "$1" == "dst" ]; then
 else
     echo "Invalid parameter. Use 'src' or 'dst'."
     exit 1
+fi
+
 cpu_cores=($numbers)
 
 iter=0
