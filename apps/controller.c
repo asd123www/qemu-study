@@ -183,7 +183,7 @@ void read_from_file(int fd, uint32_t len, char *data) {
 void signal_handler_src(int signal) {
     // qemu tells the src control that pre-copy has done.
     if (signal == SIGUSR1) {
-        printf("src: Received SIGUSR1 signal\n");
+        printf("src: Received SIGUSR1 signal\n");fflush(stdout);
         write_to_file(connfd, "qemu_pre_copy_finish");
     }
 }
@@ -248,14 +248,14 @@ void qemu_src_main(bool flag) {
 volatile sig_atomic_t sigusr1_count = 0;
 void signal_handler_dst_1(int signal) {
     if (signal == SIGUSR1) {
-        printf("dst: Received SIGUSR1 signal\n");
+        printf("dst: Received SIGUSR1 signal\n");fflush(stdout);
         write_to_file(connfd, !sigusr1_count?"qemu_vm_restart":"qemu_post_copy_finish");
         sigusr1_count = 1;
     }
 }
 void signal_handler_dst_2(int signal) {
     if (signal == SIGUSR2) {
-        printf("dst: Received SIGUSR2 signal\n");
+        printf("dst: Received SIGUSR2 signal\n");fflush(stdout);
         write_to_file(connfd, !sigusr1_count?"qemu_vm_restart":"qemu_post_copy_finish");
         sigusr1_count = 1;
     }
@@ -425,7 +425,7 @@ void shm_src_main() {
 
     read_from_file(connfd, sizeof("shm_migrate"), buff);
     assert(strcmp(buff, "shm_migrate") == 0);
-    sprintf(instr, "echo \"shm_migrate /my_shared_memory 10 %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", duration);
+    sprintf(instr, "echo \"shm_migrate /my_shared_memory %d %s\" | sudo socat stdio unix-connect:qemu-monitor-migration-src", atoi(memory_size) + 1, duration);
     execute_wrapper(instr);
 
     read_from_file(connfd, sizeof("shm_migrate_switchover"), buff);
@@ -475,8 +475,9 @@ void shm_dst_main() {
     assert(strcmp(buff, "shm_load_vm_image") == 0);
     clock_gettime(CLOCK_MONOTONIC, &start);
 
+    sprintf(instr, "echo \"migrate_incoming_shm /my_shared_memory %d\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst", atoi(memory_size) + 1);
     while (1) {
-        int ret = execute_wrapper("echo \"migrate_incoming_shm /my_shared_memory 10\" | sudo socat stdio unix-connect:qemu-monitor-migration-dst");
+        int ret = execute_wrapper(instr);
         if (!ret) break;
         // usleep(10000);
     }
@@ -489,7 +490,7 @@ void shm_dst_main() {
 
 void signal_handler_shm_backup(int signal) {
     if (signal == SIGUSR1) {
-        printf("backup: Received SIGUSR1 signal\n");
+        printf("backup: Received SIGUSR1 signal\n");fflush(stdout);
         write_to_file(srcfd, "shm_migrate");
 
         printf("The write-through duration is %d\n", atoi(write_through_duration));

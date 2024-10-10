@@ -15,6 +15,8 @@ cd apps/ycsb
 sudo ./bin/ycsb run memcached -s -threads $threads \
                                 -P workloads/workloada \
                                 -p "memcached.hosts=$VM_IP:12345" \
-                                -p "operationcount=$operationcount"
+                                -p status.interval=1 \
+                                -p "operationcount=$operationcount" \
+                                2>&1
 
 echo "Finished Memcached benchmark."
