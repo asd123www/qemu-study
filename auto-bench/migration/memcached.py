@@ -12,7 +12,7 @@ def run_sync(node, path, command):
 
 root_dir = "/mnt/mynvm/qemu-study"
 
-def bench(mode, duration):
+def bench(mode, duration, workload):
     vcpus = 4
     memory = "15G"
     recordcount = 9000000
@@ -32,11 +32,11 @@ def bench(mode, duration):
     sleep(3)
 
     client_init_command = f"sudo bash apps/workload_scripts/memcached/load_ycsb.sh 32 {recordcount}"
-    client_run_command = f"sudo taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64 bash apps/workload_scripts/memcached/run_ycsb.sh 32 {operationcount} > memcached_client.txt"
+    client_run_command = f"sudo taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64 bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {operationcount} > memcached_client.txt"
 
     # warmup.
     run_sync(client, root_dir, client_init_command)
-    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh 32 {operationcount}")
+    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {operationcount}")
 
     # benchmark run.
     run_sync(backup, root_dir, "sudo kill -SIGUSR1 $(cat controller.pid)")
@@ -52,15 +52,16 @@ if __name__ == "__main__":
     backup = fabric.Connection(host = "src")
     client = fabric.Connection(host = "dst")
 
-    if len(sys.argv) != 4:
-        print("Usage: python script.py <mode:`shm` or `qemu-precopy`> <duration(us)> <output_dir>")
+    if len(sys.argv) != 5:
+        print("Usage: python script.py <mode:`shm` or `qemu-precopy`> <duration(us)> <output_dir> <workload>")
         sys.exit(1)
 
     mode = sys.argv[1]
     duration = sys.argv[2]
     directory = sys.argv[3]
+    workload = sys.argv[4]
 
-    bench(mode, duration)
+    bench(mode, duration, workload)
 
     if not os.path.exists(directory):
         os.makedirs(directory)

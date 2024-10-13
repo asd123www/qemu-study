@@ -12,7 +12,7 @@ def run_sync(node, path, command):
 
 root_dir = "/mnt/mynvm/qemu-study"
 
-def bench(mode, duration):
+def bench(mode, duration, workload):
     vcpus = 4
     memory = "15G"
     recordcount = 1700000
@@ -32,11 +32,11 @@ def bench(mode, duration):
     sleep(3)
 
     client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {vcpus} {recordcount} 8"
-    client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {vcpus} {operationcount} 8 > redis_client.txt"
+    client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {vcpus} {operationcount} 8 > redis_client.txt"
 
     # warmup.
     run_sync(client, root_dir, client_init_command)
-    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {vcpus} {operationcount} 8")
+    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {vcpus} {operationcount} 8")
 
     # benchmark run.
     run_sync(backup, root_dir, "sudo kill -SIGUSR1 $(cat controller.pid)")
@@ -52,15 +52,16 @@ if __name__ == "__main__":
     backup = fabric.Connection(host = "src")
     client = fabric.Connection(host = "dst")
 
-    if len(sys.argv) != 4:
-        print("Usage: python script.py <mode:`shm` or `qemu-precopy`> <duration(us)> <output_dir>")
+    if len(sys.argv) != 5:
+        print("Usage: python script.py <mode:`shm` or `qemu-precopy`> <duration(us)> <output_dir> <workload>")
         sys.exit(1)
 
     mode = sys.argv[1]
     duration = sys.argv[2]
     directory = sys.argv[3]
+    workload = sys.argv[4]
 
-    bench(mode, duration)
+    bench(mode, duration, workload)
 
     if not os.path.exists(directory):
         os.makedirs(directory)
