@@ -13,10 +13,14 @@ def run_sync(node, path, command):
 root_dir = "/mnt/mynvm/qemu-study"
 
 def bench(mode, duration):
-    write_through_duration = 40
+    vcpus = 4
+    memory = "15G"
+    recordcount = 1700000
+    operationcount = 10000000
+    write_through_duration = 30
 
-    src_command = f"./apps/controller {mode} src apps/vm-boot/voltdb.exp 4 9G vm_src.txt {duration} > ctl_src.txt"
-    dst_command = f"./apps/controller {mode} dst 4 9G vm_dst.txt > ctl_dst.txt"
+    src_command = f"./apps/controller {mode} src apps/vm-boot/redis.exp {vcpus} {memory} vm_src.txt {duration} > ctl_src.txt"
+    dst_command = f"./apps/controller {mode} dst {vcpus} {memory} vm_dst.txt > ctl_dst.txt"
     backup_command = f"./apps/controller {mode} backup {write_through_duration} > ctl_backup.txt"
 
     print(src_command)
@@ -27,27 +31,14 @@ def bench(mode, duration):
     run_sync(src, root_dir, "sudo bash scripts/pin_vm_to_cores.sh src")
     sleep(3)
 
-    client_init_command = "sudo bash apps/workload_scripts/voltdb/load_tpcc.sh"
-    client_run_command = f"sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100 > voltdb_client.txt"
+    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {vcpus} {recordcount} 8"
+    client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {vcpus} {operationcount} 8 > redis_client.txt"
 
     # warmup.
     run_sync(client, root_dir, client_init_command)
-    run_sync(client, root_dir, "sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100")
+    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {vcpus} {operationcount} 8")
 
-    ssh_command = f"""
-        ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'
-        echo "Connected to second server"
-        # Place your commands here
-        cd ~/voltdb/tests/test_apps/tpcc/
-        kill -9 $(ps -eaf | grep voltdb | grep -v grep | awk '{{print $2}}')
-        nohup bash run.sh > voltdb_log.out 2>&1 &
-        sleep 5
-        exit
-        ENDSSH
-        """
-
-    run_sync(src, "~", ssh_command)
-    run_sync(client, root_dir, client_init_command)
+    # benchmark run.
     run_sync(backup, root_dir, "sudo kill -SIGUSR1 $(cat controller.pid)")
     run_sync(client, root_dir, client_run_command)
 
@@ -73,12 +64,12 @@ if __name__ == "__main__":
 
     if not os.path.exists(directory):
         os.makedirs(directory)
-    
+
     src.get(f"{root_dir}/vm_src.txt", f"{directory}/vm_src.txt")
     src.get(f"{root_dir}/ctl_src.txt", f"{directory}/ctl_src.txt")
     dst.get(f"{root_dir}/vm_dst.txt", f"{directory}/vm_dst.txt")
     dst.get(f"{root_dir}/ctl_dst.txt", f"{directory}/ctl_dst.txt")
     backup.get(f"{root_dir}/ctl_backup.txt", f"{directory}/ctl_backup.txt")
-    client.get(f"{root_dir}/voltdb_client.txt", f"{directory}/voltdb_client.txt")
-
-# For voltdb, the sleep interval is 500ms. So just go with `500000`.
+    client.get(f"{root_dir}/redis_client.txt", f"{directory}/redis_client.txt")
+    
+# For redis, the sleep interval is 500ms. So just go with `500000`
