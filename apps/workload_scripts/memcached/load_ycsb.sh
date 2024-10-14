@@ -8,7 +8,7 @@ fi
 
 workload=$1
 threads=$2
-operationcount=$3
+recordcount=$3
 
 cd apps/ycsb
 
