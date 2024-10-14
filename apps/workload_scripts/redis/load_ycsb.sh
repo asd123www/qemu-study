@@ -1,15 +1,15 @@
 source config.txt
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 4 ]; then
     echo "Error: No parameters provided."
-    echo "Usage: $0 <# of vCPUS> <recordcount> <# of threads>"
+    echo "Usage: $0 <workloada/b/c/d/e/f> <# of vCPUS> <recordcount> <# of threads>"
     exit 1
 fi
 
-# the first 
-vCPUs=$1
-recordcount=$2
-threads=$3
+workload=$1
+vCPUs=$2
+recordcount=$3
+threads=$4
 
 cd apps/ycsb
 # sudo ./bin/ycsb load redis -s -P apps/ycsb/workloads/workloada -p "redis.host=$VM_IP" -p "redis.port=12345" &
@@ -20,7 +20,7 @@ for ((i=0; i<vCPUs; i++)); do
     result=$((12345 + i))
 
     sudo ./bin/ycsb load redis -s -threads $threads \
-                                -P workloads/workloada \
+                                -P workloads/$workload \
                                 -p "redis.host=$VM_IP" \
                                 -p "redis.port=$result" \
                                 -p "recordcount=$recordcount" \

@@ -31,7 +31,7 @@ def bench(mode, duration, workload):
     run_sync(src, root_dir, "sudo bash scripts/pin_vm_to_cores.sh src")
     sleep(3)
 
-    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {vcpus} {recordcount} 8"
+    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {workload} {vcpus} {recordcount} 8"
     client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {vcpus} {operationcount} 8 > redis_client.txt"
 
     # warmup.

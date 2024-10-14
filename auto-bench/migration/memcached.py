@@ -31,7 +31,7 @@ def bench(mode, duration, workload):
     run_sync(src, root_dir, "sudo bash scripts/pin_vm_to_cores.sh src")
     sleep(3)
 
-    client_init_command = f"sudo bash apps/workload_scripts/memcached/load_ycsb.sh 32 {recordcount}"
+    client_init_command = f"sudo bash apps/workload_scripts/memcached/load_ycsb.sh {workload} 32 {recordcount}"
     client_run_command = f"sudo taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64 bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {operationcount} > memcached_client.txt"
 
     # warmup.

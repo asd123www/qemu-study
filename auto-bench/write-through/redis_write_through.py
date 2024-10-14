@@ -29,7 +29,7 @@ def bench(mode, vm_path, clt_path, duration, workload):
     operationcount = 10000000
 
     src_command = f"./apps/controller shm src apps/vm-boot/redis.exp {vcpus} {memory} {vm_path} {duration}"
-    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {vcpus} {recordcount} 8"
+    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {workload} {vcpus} {recordcount} 8"
     client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {vcpus} {operationcount} 8 > {clt_path}"
 
     print(src_command)
