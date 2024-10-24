@@ -15,7 +15,8 @@ sudo git submodule init
 sudo git submodule update
 
 sudo apt update
-# sudo apt install openjdk-8-jdk -y
+sudo apt --fix-broken install -y
+sudo apt install openjdk-8-jdk -y
 sudo apt install maven -y
 
 # build ycsb
@@ -27,7 +28,7 @@ cd ../..
 # build gapbs
 cd apps/gapbs/gapbs
 make
-make bench-graphs
+# make bench-graphs
 cd ../../..
 
 # build voltdb
