@@ -1,5 +1,13 @@
 # Virtual Machine Migration Study
 
+Because we are using userfault fd with shared memory objects, we need to upgrade the kernel version to `5.19.17`:
+
+      wget https://raw.githubusercontent.com/pimlie/ubuntu-mainline-kernel.sh/master/ubuntu-mainline-kernel.sh
+
+      sudo bash ubuntu-mainline-kernel.sh -i 5.19.17
+
+      sudo reboot
+
 The framework is QEMU+KVM. My current understanding is that QEMU emulates all the devices in software. KVM can provide native CPU virtualization support instead of QEMU dynamic translation, so we can have a better performance.
 
 The experiment is based on the `xl170` machine in Cloudlab with `kernel 5.4.0-164-generic`. To install QEMU, you can simply run: `sudo bash setup.sh`. After this, we will get the kernel image, check this [blog](https://vccolombo.github.io/cybersecurity/linux-kernel-qemu-setup/) for more. Remember to copy the image to the shared storage, in Cloudlab the directory is `/proj/your-group-name`. Then, in the source machine, you can boot up a Linux kernel by:
