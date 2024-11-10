@@ -6,10 +6,6 @@ from pydoc import cli
 from sys import stdout
 from threading import Thread
 from time import sleep
-from unittest import result
-import threading
-import fabric
-import invoke
 import sys
 import os
 import re
@@ -33,27 +29,51 @@ def redis_parser(file_path):
     return
 
 def memcached_parser(file_path):
-    print(file_path)
+    file_lst = []
+    result_lst = []
+    for filename in sorted(os.listdir(dir_path)):
+        if filename.endswith(".txt"):
+            file_path = os.path.join(dir_path, filename)
+            if "memcached" in file_path:
+                file_lst.append(file_path)
+    
     pattern = r"\[OVERALL\], Throughput\(ops/sec\), ([\d.]+)"
-    with open(file_path, 'r', errors='ignore') as file:
-        for line_num, line in enumerate(file, 1):
-            # Search for the pattern in the line
-            match = re.search(pattern, line)
-            if match:
-                throughput = match.group(1)
-                print(f"Line {line_num}: Throughput = {throughput}")
+    for file_path in file_lst:
+        with open(file_path, 'r', errors='ignore') as file:
+            for line_num, line in enumerate(file, 1):
+                # Search for the pattern in the line
+                match = re.search(pattern, line)
+                if match:
+                    throughput = match.group(1)
+                    result_lst.append((file_path, throughput))
+    result_lst.sort()
+
+    group = 5
+    for i in range(0, len(result_lst), group):
+        print(result_lst[i: i + group])
+        print("Median is: ", sorted([e[1] for e in result_lst[i: i + group]]))
+        print()
+
     return
 
 def voltdb_parser(file_path):
-    print(file_path)
+    file_lst = []
+    result_lst = []
+    for filename in sorted(os.listdir(dir_path)):
+        if filename.endswith(".txt"):
+            file_path = os.path.join(dir_path, filename)
+            if "voltdb" in file_path:
+                file_lst.append(file_path)
+    
     pattern = r"Transactions per second: ([\d.]+)"
-    with open(file_path, 'r', errors='ignore') as file:
-        for line_num, line in enumerate(file, 1):
-            # Search for the pattern in the line
-            match = re.search(pattern, line)
-            if match:
-                throughput = match.group(1)
-                print(f"Line {line_num}: Throughput = {throughput}")
+    for file_path in file_lst:
+        with open(file_path, 'r', errors='ignore') as file:
+            for line_num, line in enumerate(file, 1):
+                # Search for the pattern in the line
+                match = re.search(pattern, line)
+                if match:
+                    throughput = match.group(1)
+                    print(f"{file_path}: in line {line_num} the throughput is {throughput}")
     return
 
 def spark_parser(file_path):
@@ -85,25 +105,9 @@ def parser(dir_path, apps):
     if not os.path.exists(dir_path):
         print(f"Directory {dir_path} does not exist.")
         return
-
-    # List all files in the directory
-    for filename in sorted(os.listdir(dir_path)):
-        if filename.endswith(".txt"):
-            file_path = os.path.join(dir_path, filename)
-
-            print(filename)
-            for app in apps:
-                if app in file_path:
-                    globals()[app + "_parser"](file_path)
-            print("\n")
-
-            # # Open and read the content of the file
-            # with open(file_path, 'r') as file:
-            #     content = file.read()
-            #     print(f"Content of {filename}:")
-            #     print(content)
-            #     print("-" * 40)  # Separator for clarity
-
+    
+    for app in apps:
+        globals()[app + "_parser"](dir_path)
 
 
 if __name__ == "__main__":
@@ -113,5 +117,6 @@ if __name__ == "__main__":
     
     dir_path = sys.argv[1]
     print(f"Parsing {dir_path} experiment resuls")
-    parser(dir_path, ["spark"])
+    spark_parser(dir_path)
+    # parser(dir_path, ["voltdb"])
     # parser(dir_path, ["redis", "memcached", "voltdb", "nginx", "gapbs", "spark"])

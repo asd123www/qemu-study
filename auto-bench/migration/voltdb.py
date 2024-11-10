@@ -13,10 +13,10 @@ def run_sync(node, path, command):
 root_dir = "/mnt/mynvm/qemu-study"
 
 def bench(mode, duration):
-    write_through_duration = 40
+    write_through_duration = 100
 
-    src_command = f"./apps/controller {mode} src apps/vm-boot/voltdb.exp 4 9G vm_src.txt {duration} > ctl_src.txt"
-    dst_command = f"./apps/controller {mode} dst 4 9G vm_dst.txt > ctl_dst.txt"
+    src_command = f"./apps/controller {mode} src apps/vm-boot/voltdb.exp 4 16G vm_src.txt {duration} > ctl_src.txt"
+    dst_command = f"./apps/controller {mode} dst 4 16G vm_dst.txt > ctl_dst.txt"
     backup_command = f"./apps/controller {mode} backup {write_through_duration} > ctl_backup.txt"
 
     print(src_command)
@@ -28,11 +28,11 @@ def bench(mode, duration):
     sleep(3)
 
     client_init_command = "sudo bash apps/workload_scripts/voltdb/load_tpcc.sh"
-    client_run_command = f"sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100 > voltdb_client.txt"
+    client_run_command = f"sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 200 100 1000 > voltdb_client.txt"
 
     # warmup.
     run_sync(client, root_dir, client_init_command)
-    run_sync(client, root_dir, "sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100")
+    run_sync(client, root_dir, "sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 200 100 1000")
 
     ssh_command = f"""
         ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'

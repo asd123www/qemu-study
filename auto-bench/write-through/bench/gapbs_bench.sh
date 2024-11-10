@@ -1,7 +1,7 @@
 
 python3 gapbs_write_through.py normal gapbs-experiments/vm_gapbs_normal.txt 0 > workload_gapbs_normal.txt
 
-durations=(500000 1000 50000 200000 400000 100000 300000)
+durations=(500000)
 for duration in "${durations[@]}"
 do
     ms_duration=$((duration / 1000))

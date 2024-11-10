@@ -14,7 +14,7 @@ do
 done
 
 # with different sleep time(frequency control).
-durations=(1000 50000 100000 200000 300000 400000 500000)
+durations=(500000)
 for duration in "${durations[@]}"
 do
     ms_duration=$((duration / 1000))

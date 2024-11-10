@@ -24,26 +24,29 @@ def run_sync(node, path, command):
 
 def bench(mode, vm_path, clt_path, duration, workload):
     vcpus = 4
-    memory = "15G"
-    recordcount = 1700000
+    memory = "16G"
+    recordcount = 5000000
     operationcount = 10000000
+    server_num = 1
 
     src_command = f"./apps/controller shm src apps/vm-boot/redis.exp {vcpus} {memory} {vm_path} {duration}"
-    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {workload} {vcpus} {recordcount} 8"
-    client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {vcpus} {operationcount} 8 > {clt_path}"
+    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {workload} {server_num} {recordcount} 8"
+    client_run_command = f"sudo taskset -c 0,2,4,6 bash apps/workload_scripts/redis/run_ycsb.sh {workload} {server_num} 4 {recordcount} {operationcount} > {clt_path}"
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
     sleep(80)
+
+    if mode == "shm":
+        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 17 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
+    sleep(3)
+
     run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
     sleep(3)
 
-    if mode == "shm":
-        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
-
     # warmup.
     run_sync(client, "/mnt/mynvm/qemu-study/", client_init_command)
-    run_sync(client, "/mnt/mynvm/qemu-study/", f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {vcpus} {operationcount} 8")
+    run_sync(client, "/mnt/mynvm/qemu-study/", f"sudo taskset -c 0,2,4,6 bash apps/workload_scripts/redis/run_ycsb.sh {workload} {server_num} 4 {recordcount} {operationcount}")
 
     # experimental result.
     run_sync(client, "/mnt/mynvm/qemu-study/", client_run_command)

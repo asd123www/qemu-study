@@ -9,7 +9,7 @@ def extract_progress_throughput(text):
     match = re.search(pattern, text)
 
     if match:
-        progress = float(match.group(1))
+        progress = float(match.group(1)) * 200 / 100
         sp_per_sec = float(match.group(2))
         return (True, progress, sp_per_sec)
     
@@ -40,12 +40,12 @@ if __name__ == "__main__":
     
     plt.legend()
     plt.title("VoltDB + TPC-C")
-    plt.xlabel("progress(%)")
+    plt.xlabel("time(seconds)")
     plt.ylabel("tps")
     plt.ylim(bottom=0)
 
     xticks = [i * 2 for i in range(int(x_ax[-1]) // 2)]  # You can customize this range
-    # xticks = xticks[::4]
+    xticks = xticks[::3]
     plt.xticks(xticks)  # Set x-ticks
     # plt.savefig('rate_control.jpg', dpi=500)
     plt.show()

@@ -24,7 +24,7 @@ def run_sync(node, path, command):
 
 def bench(mode, vm_path, duration):
     vcpus = 8
-    memory = "31G"
+    memory = "32G"
 
     src_command = f"./apps/controller shm src apps/vm-boot/boot_vm.exp {vcpus} {memory} {vm_path} {duration}"
 
@@ -35,7 +35,7 @@ def bench(mode, vm_path, duration):
     sleep(3)
 
     if mode == "shm":
-        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 32 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
+        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 33 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
 
     ssh_command = f"""
         ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'

@@ -23,22 +23,23 @@ def run_sync(node, path, command):
 
 
 def bench(mode, vm_path, clt_path, duration):
-    src_command = f"./apps/controller shm src apps/vm-boot/voltdb.exp 4 9G {vm_path} {duration}"
+    src_command = f"./apps/controller shm src apps/vm-boot/voltdb.exp 4 16G {vm_path} {duration}"
     client_init_command = "sudo bash apps/workload_scripts/voltdb/load_tpcc.sh"
-    client_run_command = f"sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100 > {clt_path}"
+    client_run_command = f"sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 200 100 1000 > {clt_path}"
 
     print(src_command)
     ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
     sleep(80)
+    if mode == "shm":
+        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 17 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
+    sleep(3)
+    
     run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
     sleep(3)
 
-    if mode == "shm":
-        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 16 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
-    
     # warmup.
     run_sync(client, "/mnt/mynvm/qemu-study/", client_init_command)
-    run_sync(client, "/mnt/mynvm/qemu-study/", "sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 80 100")
+    run_sync(client, "/mnt/mynvm/qemu-study/", "sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 200 100 1000")
 
     ssh_command = f"""
         ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'
