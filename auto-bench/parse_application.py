@@ -13,19 +13,31 @@ import re
 
 
 def redis_parser(file_path):
-    print(file_path)
-    pattern = r"\[client (\d+)\] \[OVERALL\], Throughput\(ops/sec\), ([\d.]+)"
-    with open(file_path, 'r', errors='ignore') as file:
-        throughput_sum = 0.0
-        for line_num, line in enumerate(file, 1):
-            # Search for the pattern in the line
-            match = re.search(pattern, line)
-            if match:
-                client_number = match.group(1)
-                throughput = match.group(2)
-                throughput_sum += (float)(throughput)
-                print(f"Line {line_num}: Client {client_number}, Throughput = {throughput}")
-        print(f"Overall the throughput is: {throughput_sum}")
+    file_lst = []
+    result_lst = []
+    for filename in sorted(os.listdir(dir_path)):
+        if filename.endswith(".txt"):
+            file_path = os.path.join(dir_path, filename)
+            if "redis" in file_path:
+                file_lst.append(file_path)
+    
+    pattern = r"\[OVERALL\], Throughput\(ops/sec\), ([\d.]+)"
+    for file_path in file_lst:
+        with open(file_path, 'r', errors='ignore') as file:
+            for line_num, line in enumerate(file, 1):
+                # Search for the pattern in the line
+                match = re.search(pattern, line)
+                if match:
+                    throughput = match.group(1)
+                    result_lst.append((file_path, throughput))
+    result_lst.sort()
+
+    group = 5
+    for i in range(0, len(result_lst), group):
+        print(result_lst[i: i + group])
+        print("Median is: ", sorted([e[1] for e in result_lst[i: i + group]]))
+        print()
+
     return
 
 def memcached_parser(file_path):
@@ -118,5 +130,5 @@ if __name__ == "__main__":
     dir_path = sys.argv[1]
     print(f"Parsing {dir_path} experiment resuls")
     spark_parser(dir_path)
-    # parser(dir_path, ["voltdb"])
+    parser(dir_path, ["voltdb"])
     # parser(dir_path, ["redis", "memcached", "voltdb", "nginx", "gapbs", "spark"])

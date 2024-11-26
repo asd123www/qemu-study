@@ -10,7 +10,7 @@ do
     clt_file="clt_voltdb_normal_${i}.txt"
 
     # Run the python script with the current files and sleep duration of 0
-    python3 voltdb_write_through.py normal "voltdb-experiments/$vm_file" "voltdb-experiments/$clt_file" 0
+    python3 voltdb_write_through.py normal "voltdb-write-through/$vm_file" "voltdb-write-through/$clt_file" 0
 done
 
 # with different sleep time(frequency control).
@@ -27,6 +27,6 @@ do
         vm_file="vm_voltdb_shm_${ms_duration}ms_${i}.txt"
         clt_file="clt_voltdb_shm_${ms_duration}ms_${i}.txt"
 
-        python3 voltdb_write_through.py shm "voltdb-experiments/$vm_file" "voltdb-experiments/$clt_file" $duration
+        python3 voltdb_write_through.py shm "voltdb-write-through/$vm_file" "voltdb-write-through/$clt_file" $duration
     done
 done

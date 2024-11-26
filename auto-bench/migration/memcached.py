@@ -14,10 +14,10 @@ root_dir = "/mnt/mynvm/qemu-study"
 
 def bench(mode, duration, workload):
     vcpus = 4
-    memory = "15G"
-    recordcount = 9000000
-    operationcount = 20000000
-    write_through_duration = 30
+    memory = "16G"
+    recordcount = 7500000
+    operationcount = 80000000
+    write_through_duration = 100 + 10
 
     src_command = f"./apps/controller {mode} src apps/vm-boot/memcached.exp {vcpus} {memory} vm_src.txt {duration} > ctl_src.txt"
     dst_command = f"./apps/controller {mode} dst {vcpus} {memory} vm_dst.txt > ctl_dst.txt"
@@ -32,14 +32,16 @@ def bench(mode, duration, workload):
     sleep(3)
 
     client_init_command = f"sudo bash apps/workload_scripts/memcached/load_ycsb.sh {workload} 32 {recordcount}"
-    client_run_command = f"sudo taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64 bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {operationcount} > memcached_client.txt"
+    client_run_command = f"sudo taskset -c 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64 bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {recordcount} {operationcount} > memcached_client.txt"
 
     # warmup.
     run_sync(client, root_dir, client_init_command)
-    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {operationcount}")
+    run_sync(client, root_dir, f"sudo bash apps/workload_scripts/memcached/run_ycsb.sh {workload} 32 {recordcount} {operationcount}")
 
-    # benchmark run.
+    # benchmark run, we should pin cores after the migration thread is actived, otherwise the migration thread will share the same core with one thread.
     run_sync(backup, root_dir, "sudo kill -SIGUSR1 $(cat controller.pid)")
+    sleep(3)
+
     run_sync(client, root_dir, client_run_command)
 
     run_sync(src, root_dir, "sudo bash scripts/my_kill.sh")

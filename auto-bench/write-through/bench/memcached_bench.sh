@@ -14,7 +14,7 @@ do
         clt_file="clt_memcached_${workload}_normal_${i}.txt"
 
         # Run the python script with the current files and sleep duration of 0
-        python3 memcached_write_through.py normal "memcached-experiments/$vm_file" "memcached-experiments/$clt_file" 0 $workload
+        python3 memcached_write_through.py normal "memcached-write-through/$vm_file" "memcached-write-through/$clt_file" 0 $workload
     done
 
     # with different sleep time(frequency control).
@@ -32,7 +32,7 @@ do
             vm_file="vm_memcached_shm_${workload}_${ms_duration}ms_${i}.txt"
             clt_file="clt_memcached_shm_${workload}_${ms_duration}ms_${i}.txt"
 
-            python3 memcached_write_through.py shm "memcached-experiments/$vm_file" "memcached-experiments/$clt_file" $duration $workload
+            python3 memcached_write_through.py shm "memcached-write-through/$vm_file" "memcached-write-through/$clt_file" $duration $workload
         done
     done
 done

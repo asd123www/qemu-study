@@ -13,7 +13,7 @@ def run_sync(node, path, command):
 root_dir = "/mnt/mynvm/qemu-study"
 
 def bench(mode, duration):
-    write_through_duration = 100
+    write_through_duration = 100 + 6
 
     src_command = f"./apps/controller {mode} src apps/vm-boot/voltdb.exp 4 16G vm_src.txt {duration} > ctl_src.txt"
     dst_command = f"./apps/controller {mode} dst 4 16G vm_dst.txt > ctl_dst.txt"
@@ -24,8 +24,6 @@ def bench(mode, duration):
     ret2 = run_async(dst, root_dir, dst_command)
     ret3 = run_async(backup, root_dir, backup_command)
     sleep(80)
-    run_sync(src, root_dir, "sudo bash scripts/pin_vm_to_cores.sh src")
-    sleep(3)
 
     client_init_command = "sudo bash apps/workload_scripts/voltdb/load_tpcc.sh"
     client_run_command = f"sudo bash apps/workload_scripts/voltdb/run_tpcc.sh 200 100 1000 > voltdb_client.txt"
@@ -49,6 +47,8 @@ def bench(mode, duration):
     run_sync(src, "~", ssh_command)
     run_sync(client, root_dir, client_init_command)
     run_sync(backup, root_dir, "sudo kill -SIGUSR1 $(cat controller.pid)")
+    sleep(5)
+    run_sync(src, root_dir, "sudo bash scripts/pin_vm_to_cores.sh src")
     run_sync(client, root_dir, client_run_command)
 
     run_sync(src, root_dir, "sudo bash scripts/my_kill.sh")
@@ -82,3 +82,4 @@ if __name__ == "__main__":
     client.get(f"{root_dir}/voltdb_client.txt", f"{directory}/voltdb_client.txt")
 
 # For voltdb, the sleep interval is 500ms. So just go with `500000`.
+# python3 voltdb.py shm 500000 voltdb-migrate/voltdb_test0

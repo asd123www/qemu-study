@@ -14,7 +14,7 @@ do
         clt_file="clt_redis_${workload}_normal_${i}.txt"
 
         # Run the python script with the current files and sleep duration of 0
-        python3 redis_write_through.py normal "redis-experiments/$vm_file" "redis-experiments/$clt_file" 0 $workload
+        python3 redis_write_through.py normal "redis-write-through/$vm_file" "redis-write-through/$clt_file" 0 $workload
     done
 
     # with different sleep time(frequency control).
@@ -31,7 +31,7 @@ do
             vm_file="vm_redis_${workload}_shm_${ms_duration}ms_${i}.txt"
             clt_file="clt_redis_${workload}_shm_${ms_duration}ms_${i}.txt"
 
-            python3 redis_write_through.py shm "redis-experiments/$vm_file" "redis-experiments/$clt_file" $duration $workload
+            python3 redis_write_through.py shm "redis-write-through/$vm_file" "redis-write-through/$clt_file" $duration $workload
         done
     done
 done

@@ -26,7 +26,7 @@ def bench(mode, vm_path, clt_path, duration, workload):
     vcpus = 4
     memory = "16G"
     recordcount = 7500000 # 10.5G memory.
-    operationcount = 50000000
+    operationcount = 80000000 # 50000000
 
     src_command = f"./apps/controller shm src apps/vm-boot/memcached.exp {vcpus} {memory} {vm_path} {duration}"
     client_init_command = f"sudo bash apps/workload_scripts/memcached/load_ycsb.sh {workload} 32 {recordcount}"

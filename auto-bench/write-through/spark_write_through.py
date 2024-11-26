@@ -23,8 +23,9 @@ def run_sync(node, path, command):
 
 
 def bench(mode, vm_path, duration):
-    vcpus = 4
+    vcpus = 8
     memory = "16G"
+    ulimit_size = 12 * 1024 * 1024
 
     src_command = f"./apps/controller shm src apps/vm-boot/port_fwd.exp {vcpus} {memory} {vm_path} {duration}"
 
@@ -43,6 +44,7 @@ def bench(mode, vm_path, duration):
         ssh -o "StrictHostKeyChecking no" root@10.10.1.100 << 'ENDSSH'
         echo "Connected to second server"
         # Place your commands here
+        ulimit -m {ulimit_size}
         cd spark/
         bash setup.sh
         bash run.sh w.txt

@@ -25,7 +25,7 @@ def run_sync(node, path, command):
 def bench(mode, vm_path, clt_path, duration, workload):
     vcpus = 4
     memory = "16G"
-    recordcount = 5000000
+    recordcount = 5000000 # 9.75G
     operationcount = 10000000
     server_num = 1
 

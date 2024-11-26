@@ -491,8 +491,6 @@ void shm_dst_main() {
 void signal_handler_shm_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");fflush(stdout);
-        write_to_file(srcfd, "shm_migrate");
-
         printf("The write-through duration is %d\n", atoi(write_through_duration));
         sleep(atoi(write_through_duration));
 
@@ -545,6 +543,10 @@ void shm_backup_main() {
         printf("An error occurred while setting a signal handler.\n"); fflush(stdout);
         exit(-1);
     }
+
+    sleep(77);
+    // start the migration thread.
+    write_to_file(srcfd, "shm_migrate");
 
     while(1) {
         fflush(stdout);

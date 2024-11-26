@@ -14,7 +14,7 @@ root_dir = "/mnt/mynvm/qemu-study"
 
 def bench(mode, duration, workload):
     vcpus = 4
-    memory = "15G"
+    memory = "16G"
     recordcount = 1700000
     operationcount = 10000000
     write_through_duration = 30
