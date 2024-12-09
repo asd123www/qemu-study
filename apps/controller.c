@@ -210,6 +210,8 @@ void qemu_src_main(bool flag) {
         int ret = execute_wrapper(instr);
         if (!ret) break;
     }
+    printf("The target downtime is 150ms.\n");
+    execute_wrapper("echo \"migrate_set_parameter downtime-limit 150\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
     if (!flag) {
         sprintf(instr, "echo \"migrate_set_capability postcopy-ram on\" | sudo socat stdio unix-connect:qemu-monitor-migration-src");
         assert(execute_wrapper(instr) == 0);
@@ -239,6 +241,9 @@ void qemu_src_main(bool flag) {
         assert(execute_wrapper(instr) == 0);
     }
 
+    usleep(1000);
+    execute_wrapper("sudo bash scripts/pin_vm_to_cores.sh src");
+
     while (1) {
         fflush(stdout);
         sleep(1);
@@ -250,6 +255,10 @@ void signal_handler_dst_1(int signal) {
     if (signal == SIGUSR1) {
         printf("dst: Received SIGUSR1 signal\n");fflush(stdout);
         write_to_file(connfd, !sigusr1_count?"qemu_vm_restart":"qemu_post_copy_finish");
+        if (!sigusr1_count) {
+            usleep(1000);
+            execute_wrapper("sudo bash scripts/pin_vm_to_cores.sh dst");
+        }
         sigusr1_count = 1;
     }
 }
@@ -257,6 +266,10 @@ void signal_handler_dst_2(int signal) {
     if (signal == SIGUSR2) {
         printf("dst: Received SIGUSR2 signal\n");fflush(stdout);
         write_to_file(connfd, !sigusr1_count?"qemu_vm_restart":"qemu_post_copy_finish");
+        if (!sigusr1_count) {
+            usleep(1000);
+            execute_wrapper("sudo bash scripts/pin_vm_to_cores.sh dst");
+        }
         sigusr1_count = 1;
     }
 }
@@ -445,6 +458,9 @@ void signal_handler_shm_dst(int signal) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         printf("\n\ndst load VM image durtion: %lld ns\n", end.tv_sec * 1000000000LL + end.tv_nsec - start.tv_sec * 1000000000LL - start.tv_nsec);
         fflush(stdout);
+
+        // usleep(10000);
+        // execute_wrapper("sudo bash scripts/pin_vm_to_cores.sh dst");
     }
 }
 void shm_dst_main() {
@@ -492,6 +508,7 @@ void signal_handler_shm_backup(int signal) {
     if (signal == SIGUSR1) {
         printf("backup: Received SIGUSR1 signal\n");fflush(stdout);
         printf("The write-through duration is %d\n", atoi(write_through_duration));
+        write_to_file(srcfd, "shm_migrate");
         sleep(atoi(write_through_duration));
 
         struct timespec before_migrate, pre_copy_finish, vm_restart, post_copy_finish;
@@ -544,9 +561,7 @@ void shm_backup_main() {
         exit(-1);
     }
 
-    sleep(77);
-    // start the migration thread.
-    write_to_file(srcfd, "shm_migrate");
+
 
     while(1) {
         fflush(stdout);

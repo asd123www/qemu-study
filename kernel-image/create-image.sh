@@ -23,6 +23,7 @@ fi
 ARCH=$(uname -m)
 RELEASE=bullseye
 FEATURE=minimal
+SSH_PATH=~
 SEEK=358400
 PERF=false
 
@@ -173,7 +174,7 @@ echo "syzkaller" | sudo tee $DIR/etc/hostname
 ssh-keygen -f $RELEASE.id_rsa -t rsa -N ''
 sudo mkdir -p $DIR/root/.ssh/
 # cat $RELEASE.id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
-cat ~/.ssh/id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
+sudo cat $SSH_PATH/.ssh/id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 
 # asd123www: cp to vm disk since we don't have network to the internet...
 sudo cp -r /usr/lib/jvm/* $DIR/usr/lib/jvm/
