@@ -10,13 +10,13 @@ sudo apt-get update
 # Install build dependencies
 sudo apt --fix-broken install -y
 sudo apt-get build-dep linux linux-image-$(uname -r) -y || true
-sudo apt-get install -y libncurses-dev flex bison openssl zstd libssl-dev dkms \
+sudo apt-get install -y libncurses-dev flex dwarves bison openssl zstd libssl-dev dkms \
     libelf-dev libudev-dev libpci-dev libiberty-dev \
     autoconf fakeroot bc cpio rsync --allow-change-held-packages
 
 SCRIPT_PATH=`realpath $0`
 BASE_DIR=`dirname $SCRIPT_PATH`
-LINUX_PATH="$BASE_DIR/linux-FMSync"
+LINUX_PATH="$BASE_DIR/linux"
 
 pushd $LINUX_PATH
 if [ ! -e "Makefile" ]; then
@@ -79,11 +79,11 @@ pushd $BASE_DIR
 sudo dpkg -i linux-*.deb
 popd
 
-if [ -z "$(awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg | grep -m 1 'Ubuntu, with Linux 5.19.0-FMSync+')" ]; then
+if [ -z "$(awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg | grep -m 1 'Ubuntu, with Linux 5.19.0-fmsync+')" ]; then
     printf "Cannot find the Memstrata kernel. Please install the kernel manually.\n"
     exit 1
 fi
 
 printf "Memstrata kernel is installed. To boot into Memstrata kernel, please run:\n"
-printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 5.19.0-FMSync+\"\n"
+printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 5.19.0-fmsync+\"\n"
 printf "    sudo reboot\n"
