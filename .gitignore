@@ -58,3 +58,4 @@ linux*
 apps/controller
 apps/voltdb/voltdb
 *-write-through
+debug/*

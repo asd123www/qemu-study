@@ -4,7 +4,7 @@
 
 [submodule "qemu-master"]
 	path = qemu-master
-	url = https://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@github.com/asd123www/qemu-master.git
+	url = https://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@github.com/asd123www/qemu-master.git
 [submodule "apps/wrk"]
 	path = apps/wrk
 	url = https://github.com/wg/wrk.git
@@ -14,3 +14,6 @@
 [submodule "apps/gapbs/gapbs"]
 	path = apps/gapbs/gapbs
 	url = https://github.com/sbeamer/gapbs
+[submodule "linux-FMSync"]
+	path = linux-FMSync
+	url = https://github.com/asd123www/linux-FMSync.git

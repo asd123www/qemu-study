@@ -23,7 +23,7 @@ fi
 ARCH=$(uname -m)
 RELEASE=bullseye
 FEATURE=minimal
-SSH_PATH=~
+SSH_PATH=/home/zezhou
 SEEK=358400
 PERF=false
 
@@ -133,6 +133,7 @@ if [ $FEATURE = "full" ]; then
     PREINSTALL_PKGS=$PREINSTALL_PKGS","$ADD_PACKAGE
 fi
 
+sudo cat $SSH_PATH/.ssh/id_rsa.pub
 sudo rm -rf $DIR
 sudo mkdir -p $DIR
 sudo chmod 0755 $DIR
