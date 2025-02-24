@@ -53,6 +53,10 @@ cp /boot/config-$(uname -r) .config
 ./scripts/config -e CONFIG_IP_NF_TARGET_MASQUERADE
 ./scripts/config -e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
 ./scripts/config -m CONFIG_NETFILTER_XT_MATCH_CONNTRACK
+./scripts/config -m CONFIG_NF_TABLES
+./scripts/config -m CONFIG_NFT_NAT
+./scripts/config -m CONFIG_NFT_COMPAT
+./scripts/config -m CONFIG_VETH
 
 ./scripts/config -e CONFIG_IP_NF_NAT
 ./scripts/config -e CONFIG_NF_NAT
@@ -99,11 +103,11 @@ pushd $BASE_DIR
 sudo dpkg -i linux-*.deb
 popd
 
-if [ -z "$(awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg | grep -m 1 'Ubuntu, with Linux 6.1.129-fmsync+')" ]; then
+if [ -z "$(awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg | grep -m 1 'Ubuntu, with Linux 5.19.17-fmsync+')" ]; then
     printf "Cannot find the Memstrata kernel. Please install the kernel manually.\n"
     exit 1
 fi
 
 printf "Memstrata kernel is installed. To boot into Memstrata kernel, please run:\n"
-printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 6.1.129-fmsync+\"\n"
+printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 5.19.17-fmsync+\"\n"
 printf "    sudo reboot\n"
