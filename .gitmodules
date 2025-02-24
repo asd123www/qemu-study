@@ -16,4 +16,4 @@
 	url = https://github.com/sbeamer/gapbs
 [submodule "linux"]
 	path = linux
-	url = https://github.com/asd123www/linux.git
+	url = git@github.com:asd123www/linux.git
