@@ -30,6 +30,7 @@ make distclean
 
 # Configure kernel
 printf "Configuring kernel...\n"
+cp /boot/config-$(uname -r) .config
 (yes "" || true) | make localmodconfig
 ./scripts/config -e CONFIG_DAMON
 ./scripts/config -e CONFIG_DAMON_VADDR
@@ -43,6 +44,18 @@ printf "Configuring kernel...\n"
 ./scripts/config -e CONFIG_NF_CONNTRACK
 ./scripts/config -e CONFIG_IP_NF_IPTABLES
 ./scripts/config -e CONFIG_IP_NF_FILTER
+./scripts/config -m CONFIG_OVERLAY_FS
+./scripts/config -m CONFIG_XFRM_USER
+./scripts/config -m CONFIG_INET_ESP
+./scripts/config -m CONFIG_IPV6_TUNNEL
+./scripts/config -m CONFIG_NET_KEY
+./scripts/config -m CONFIG_NF_CT_NETLINK
+./scripts/config -e CONFIG_IP_NF_TARGET_MASQUERADE
+./scripts/config -e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
+
+./scripts/config -e CONFIG_IP_NF_NAT
+./scripts/config -e CONFIG_NF_NAT
+./scripts/config -m CONFIG_NF_CONNTRACK_EVENTS
 ./scripts/config -d SYSTEM_REVOCATION_KEYS
 ./scripts/config -d SYSTEM_TRUSTED_KEYS
 ./scripts/config -d CONFIG_MODULE_SIG
