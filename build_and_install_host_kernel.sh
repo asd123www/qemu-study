@@ -39,6 +39,10 @@ printf "Configuring kernel...\n"
 ./scripts/config -e CONFIG_DAMON_RECLAIM
 ./scripts/config -e CONFIG_BRIDGE
 ./scripts/config -e CONFIG_BRIDGE_NETFILTER
+./scripts/config -e CONFIG_NETFILTER_XTABLES
+./scripts/config -e CONFIG_NF_CONNTRACK
+./scripts/config -e CONFIG_IP_NF_IPTABLES
+./scripts/config -e CONFIG_IP_NF_FILTER
 ./scripts/config -d SYSTEM_REVOCATION_KEYS
 ./scripts/config -d SYSTEM_TRUSTED_KEYS
 ./scripts/config -d CONFIG_MODULE_SIG
