@@ -188,6 +188,7 @@ sudo cp -r ../apps/voltdb/voltdb $DIR/root/voltdb
 sudo cp -r ../apps/nginx $DIR/root/nginx
 sudo cp -r ../apps/gapbs $DIR/root/
 sudo cp -r ../apps/spark $DIR/root/
+sudo cp -r ../apps/random-write/ $DIR/root/
 
 # Add perf support
 if [ $PERF = "true" ]; then
