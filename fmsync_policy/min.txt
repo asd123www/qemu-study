@@ -1,0 +1,269 @@
+min_page: 5357, min_distance: 26
+evict page: 5357
+011000 000000000
+
+min_page: 1162, min_distance: 22
+evict page: 1162
+001001 000000000
+
+min_page: 2534, min_distance: 22
+evict page: 2534
+010100 000000000
+
+min_page: 3607, min_distance: 22
+evict page: 3607
+000011 000000000
+
+min_page: 1563, min_distance: 20
+evict page: 1563
+110110 000000000
+
+min_page: 5458, min_distance: 20
+evict page: 5458
+001010 000000000
+min_page: 6472, min_distance: 20
+evict page: 6472
+000101 000000000
+min_page: 14, min_distance: 19
+evict page: 14
+000011 000000000
+min_page: 3795, min_distance: 19
+evict page: 3795
+000100 000000000
+min_page: 4133, min_distance: 19
+evict page: 4133
+101110 000000000
+min_page: 5032, min_distance: 19
+evict page: 5032
+110100 000000000
+min_page: 5359, min_distance: 19
+evict page: 5359
+101010 000000000
+min_page: 8172, min_distance: 19
+evict page: 8172
+001101 000000000
+min_page: 8266, min_distance: 19
+evict page: 8266
+110101 000000000
+min_page: 899, min_distance: 18
+evict page: 899
+100101 000000000
+min_page: 1804, min_distance: 18
+evict page: 1804
+001100 000000000
+min_page: 2315, min_distance: 18
+evict page: 2315
+001000 000000000
+min_page: 3427, min_distance: 18
+evict page: 3427
+100011 000000000
+min_page: 4802, min_distance: 18
+evict page: 4802
+000001 000000000
+min_page: 5393, min_distance: 18
+evict page: 5393
+100000 000000000
+min_page: 5826, min_distance: 18
+evict page: 5826
+101111 000000000
+min_page: 6959, min_distance: 18
+evict page: 6959
+110000 000000000
+min_page: 7672, min_distance: 18
+evict page: 7672
+010101 000000000
+min_page: 694, min_distance: 17
+evict page: 694
+010100 000000000
+min_page: 1110, min_distance: 17
+evict page: 1110
+111000 000000000
+min_page: 1217, min_distance: 17
+evict page: 1217
+010100 000000000
+min_page: 1899, min_distance: 17
+evict page: 1899
+100000 000000000
+min_page: 2598, min_distance: 17
+evict page: 2598
+011110 000000000
+min_page: 2621, min_distance: 17
+evict page: 2621
+000011 000000000
+min_page: 3374, min_distance: 17
+evict page: 3374
+010110 000000000
+min_page: 3456, min_distance: 17
+evict page: 3456
+001110 000000000
+min_page: 4252, min_distance: 17
+evict page: 4252
+001101 000000000
+min_page: 4319, min_distance: 17
+evict page: 4319
+001000 000000000
+min_page: 4468, min_distance: 17
+evict page: 4468
+101111 000000000
+min_page: 4638, min_distance: 17
+evict page: 4638
+011001 000000000
+min_page: 4890, min_distance: 17
+evict page: 4890
+010001 000000000
+min_page: 5040, min_distance: 17
+evict page: 5040
+010001 000000000
+min_page: 5169, min_distance: 17
+evict page: 5169
+000010 000000000
+min_page: 5582, min_distance: 17
+evict page: 5582
+001011 000000000
+min_page: 5933, min_distance: 17
+evict page: 5933
+011010 000000000
+min_page: 6294, min_distance: 17
+evict page: 6294
+000101 000000000
+min_page: 6740, min_distance: 17
+evict page: 6740
+001100 000000000
+min_page: 6756, min_distance: 17
+evict page: 6756
+100000 000000000
+min_page: 7382, min_distance: 17
+evict page: 7382
+010001 000000000
+min_page: 8042, min_distance: 17
+evict page: 8042
+101110 000000000
+min_page: 8349, min_distance: 17
+evict page: 8349
+011011 000000000
+min_page: 8663, min_distance: 17
+evict page: 8663
+010100 000000000
+min_page: 8810, min_distance: 17
+evict page: 8810
+100100 000000000
+min_page: 153, min_distance: 16
+evict page: 153
+000101 000000000
+min_page: 193, min_distance: 16
+evict page: 193
+110100 000000000
+min_page: 758, min_distance: 16
+evict page: 758
+001110 000000000
+min_page: 1748, min_distance: 16
+evict page: 1748
+000101 000000000
+min_page: 1818, min_distance: 16
+evict page: 1818
+111100 000000000
+min_page: 1889, min_distance: 16
+evict page: 1889
+101000 000000000
+min_page: 2057, min_distance: 16
+evict page: 2057
+001101 000000000
+min_page: 2136, min_distance: 16
+evict page: 2136
+110101 000000000
+min_page: 2156, min_distance: 16
+evict page: 2156
+010111 000000000
+min_page: 2280, min_distance: 16
+evict page: 2280
+001000 000000000
+min_page: 2536, min_distance: 16
+evict page: 2536
+110010 000000000
+min_page: 2742, min_distance: 16
+evict page: 2742
+100100 000000000
+min_page: 2917, min_distance: 16
+evict page: 2917
+101101 000000000
+min_page: 2942, min_distance: 16
+evict page: 2942
+110000 000000000
+min_page: 3087, min_distance: 16
+evict page: 3087
+011110 000000000
+min_page: 3501, min_distance: 16
+evict page: 3501
+001000 000000000
+min_page: 3567, min_distance: 16
+evict page: 3567
+000001 000000000
+min_page: 3593, min_distance: 16
+evict page: 3593
+001000 000000000
+min_page: 3727, min_distance: 16
+evict page: 3727
+000011 000000000
+min_page: 3991, min_distance: 16
+evict page: 3991
+010011 000000000
+min_page: 3997, min_distance: 16
+evict page: 3997
+000100 000000000
+min_page: 4000, min_distance: 16
+evict page: 4000
+000110 000000000
+min_page: 4019, min_distance: 16
+evict page: 4019
+000100 000000000
+min_page: 4592, min_distance: 16
+evict page: 4592
+100001 000000000
+min_page: 4664, min_distance: 16
+evict page: 4664
+001010 000000000
+min_page: 5190, min_distance: 16
+evict page: 5190
+000110 000000000
+min_page: 5895, min_distance: 16
+evict page: 5895
+000010 000000000
+min_page: 6034, min_distance: 16
+evict page: 6034
+000110 000000000
+min_page: 6202, min_distance: 16
+evict page: 6202
+010101 000000000
+min_page: 6465, min_distance: 16
+evict page: 6465
+010000 000000000
+min_page: 6478, min_distance: 16
+evict page: 6478
+001001 000000000
+min_page: 6720, min_distance: 16
+evict page: 6720
+010000 000000000
+min_page: 7551, min_distance: 16
+evict page: 7551
+001010 000000000
+min_page: 7773, min_distance: 16
+evict page: 7773
+111010 000000000
+min_page: 7807, min_distance: 16
+evict page: 7807
+111100 000000000
+min_page: 7822, min_distance: 16
+evict page: 7822
+000110 000000000
+min_page: 7932, min_distance: 16
+evict page: 7932
+001011 000000000
+min_page: 7954, min_distance: 16
+evict page: 7954
+010011 000000000
+min_page: 8398, min_distance: 16
+evict page: 8398
+000101 000000000
+min_page: 8621, min_distance: 16
+evict page: 8621
+111011 000000000
