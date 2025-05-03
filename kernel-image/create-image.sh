@@ -12,7 +12,7 @@ set -eux
 
 # Create a minimal Debian distribution in a directory.
 DIR=chroot
-PREINSTALL_PKGS=openssh-server,curl,wget,ssh,maven,pdsh,tar,bc,scala,python2,python3,valgrind,ntp,ccache,cmake,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,redis-server,redis,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
+PREINSTALL_PKGS=openssh-server,curl,wget,ssh,maven,pdsh,tar,bc,scala,python2,python3,valgrind,ntp,ccache,cmake,locales,memcached,nginx,libjemalloc-dev,libdb++-dev,build-essential,libaio-dev,libnuma-dev,libssl-dev,zlib1g-dev,autoconf,gcc,tmux,vim,automake,libopenmpi-dev,mpich,git,htop,tcpdump,iperf,build-essential,libc6-dev,time,strace,sudo,less,psmisc,selinux-utils,policycoreutils,checkpolicy,selinux-policy-default,firmware-atheros,debian-ports-archive-keyring
 
 # If ADD_PACKAGE is not defined as an external environment variable, use our default packages
 if [ -z ${ADD_PACKAGE+x} ]; then
@@ -181,6 +181,7 @@ sudo cat $SSH_PATH/.ssh/id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 sudo cp -r /usr/lib/jvm/* $DIR/usr/lib/jvm/
 sudo mkdir -p $DIR/root/redis/
 sudo cp ../apps/redis/redis-server.conf $DIR/root/redis/
+sudo cp -r ../apps/redis/redis-7.2.4 $DIR/root/redis/
 sudo cp -r ../apps/graph500/ $DIR/root/
 sudo cp -r ../apps/stress-ng/ $DIR/root/
 sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
