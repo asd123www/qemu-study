@@ -104,11 +104,11 @@ pushd $BASE_DIR
 sudo dpkg -i linux-*.deb
 popd
 
-if [ -z "$(awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg | grep -m 1 'Ubuntu, with Linux 5.19.17-zezhou+')" ]; then
+if [ -z "$(awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg | grep -m 1 'Ubuntu, with Linux 5.19.17-fmsync+')" ]; then
     printf "Cannot find the Memstrata kernel. Please install the kernel manually.\n"
     exit 1
 fi
 
 printf "Memstrata kernel is installed. To boot into Memstrata kernel, please run:\n"
-printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 5.19.17-zezhou+\"\n"
+printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 5.19.17-fmsync+\"\n"
 printf "    sudo reboot\n"
