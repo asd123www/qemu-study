@@ -46,11 +46,34 @@ send "sudo locale-gen\r"
 expect "root@syzkaller:"
 send "sudo update-locale LANG=en_US.UTF-8\r"
 
+
 expect "root@syzkaller:"
-send "sudo make -j\r"
+send "cd deps/jemalloc\r"
+
+expect "root@syzkaller:"
+send "./autogen.sh\r"
+
+expect "root@syzkaller:"
+send "./configure\r"
+
+expect "root@syzkaller:"
+send "make\r"
+
+expect "root@syzkaller:"
+send "cd ../..\r"
+
+
+expect "root@syzkaller:"
+send "make distclean\r"
+
+expect "root@syzkaller:"
+send "make\r"
 
 expect "root@syzkaller:"
 send "sudo make install\r"
+
+expect "root@syzkaller:"
+send "cp /usr/local/bin/redis-server /usr/bin/\r"
 
 interact
 
