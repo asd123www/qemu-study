@@ -18,7 +18,9 @@ sudo ethtool -C $NIC_NAME rx-frames-irq 1 tx-frames-irq 1
 sudo ethtool -C $NIC_NAME rx-frames 1 tx-frames 1
 sudo ethtool -C $NIC_NAME rx-frames 1 tx-frames 1
 sudo ethtool -L $NIC_NAME combined 1
-sudo service irqbalance stop
+
+sudo systemctl stop irqbalance
+sudo systemctl disable irqbalance
 
 pushd /sys/class/net/$NIC_NAME/device/msi_irqs/
 
