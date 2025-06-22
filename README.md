@@ -25,7 +25,7 @@ To disable/enable THP: `sudo bash scripts/disable_THP.sh [never/always]`. To dis
 
 Then, setup the qemu and workloads: `sudo bash scripts/setup.sh debug`. The arg is which [qemu-master](git@github.com:asd123www/qemu-master.git) branch to use, debug is the latest version, but has the inconsistency bug. Then prepare the VM image: `cd kernel-image`, then `sudo bash create-image.sh`.
 
-To install our customized redis: `./apps/controller shm src apps/vm-boot/setup_redis.exp 4 16G vm_src.txt 400000`, wait until the output(`cat vm_src.txt`) in vm_src.txt shows it successfully installed. You can also just `ssh root@10.10.1.100` to run commands.
+To install our customized redis: `./apps/controller shm src apps/vm-boot/setup_redis.exp 4 16G vm_src.txt 400000`, wait until the output(`cat vm_src.txt`) in vm_src.txt shows it successfully installed. Sometimes the first run will fail and you should `sudo bash scripts/my_kill.sh` and re-run it. You can also just `ssh root@10.10.1.100` to run commands.
 
 After this, you can run the migration:
 
