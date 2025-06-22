@@ -21,35 +21,42 @@ def run_sync(node, path, command):
     with node.cd(path):
         node.run(command, asynchronous = False, pty = True)
 
+ROOT_PATH="/mnt/mynvm/qemu-study"
 
 def bench(mode, vm_path, clt_path, duration, workload):
     vcpus = 4
-    memory = "16G"
+    memory = "20G"
     recordcount = 5000000 # 9.75G
     operationcount = 10000000
+    if workload == "workloade":
+        operationcount = 30000
     server_num = 1
+    thread_count = 6
+    load_thread_count = 10
 
     src_command = f"./apps/controller shm src apps/vm-boot/redis.exp {vcpus} {memory} {vm_path} {duration}"
-    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {workload} {server_num} {recordcount} 8"
-    client_run_command = f"sudo taskset -c 0,2,4,6 bash apps/workload_scripts/redis/run_ycsb.sh {workload} {server_num} 4 {recordcount} {operationcount} > {clt_path}"
+    client_init_command = f"sudo bash apps/workload_scripts/redis/load_ycsb.sh {workload} {server_num} {recordcount} {load_thread_count}"
+    client_run_command = f"sudo bash apps/workload_scripts/redis/run_ycsb.sh {workload} {server_num} {thread_count} {recordcount} {operationcount} > {clt_path}"
 
     print(src_command)
-    ret1 = run_async(src, "/mnt/mynvm/qemu-study", src_command)
+    ret1 = run_async(src, ROOT_PATH, src_command)
     sleep(80)
 
     if mode == "shm":
-        run_sync(src, "/mnt/mynvm/qemu-study", f"echo \"shm_migrate /my_shared_memory 17 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
+        run_sync(src, ROOT_PATH, f"echo \"shm_migrate /my_shared_memory 21 {duration}\" | sudo socat stdio unix-connect:qemu-monitor-migration-src")
     sleep(3)
 
-    run_sync(src, "/mnt/mynvm/qemu-study", "sudo bash scripts/pin_vm_to_cores.sh src")
+    # when adding pin cores, the results are not stable. But I don't know why.
+    run_sync(src, ROOT_PATH, "sudo bash scripts/pin_vm_to_cores.sh src")
+    run_sync(src, ROOT_PATH, "sudo bash scripts/pin_vhost.sh")
     sleep(3)
 
     # warmup.
-    run_sync(client, "/mnt/mynvm/qemu-study/", client_init_command)
-    run_sync(client, "/mnt/mynvm/qemu-study/", f"sudo taskset -c 0,2,4,6 bash apps/workload_scripts/redis/run_ycsb.sh {workload} {server_num} 4 {recordcount} {operationcount}")
+    run_sync(client, ROOT_PATH, client_init_command)
 
     # experimental result.
-    run_sync(client, "/mnt/mynvm/qemu-study/", client_run_command)
+    run_sync(client, ROOT_PATH, client_run_command)
+    run_sync(src, ROOT_PATH, "sudo dmesg -C")
 
 
 if __name__ == "__main__":
