@@ -117,21 +117,29 @@ gcc controller.c -o controller -O3
 cd redis
 sudo bash setup_redis_client.sh
 
-# setup the network bridge for public VM IP address.
-echo "NIC interface is: $NIC_NAME"
-sudo ip link add br0 type bridge
+# Save current IPv4/CIDR and default gateway
+IP_CIDR=$(ip -4 -o addr show "$NIC" | awk '{print $4}')
+GW=$(ip route show default | awk '{print $3}')
+
+# Create bridge (idempotent)
+sudo ip link add name br0 type bridge 2>/dev/null || true
 sudo ip link set br0 up
-sudo ip link set $NIC_NAME master br0
-ip_addr=$(ip addr show $NIC_NAME | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
-sudo ip addr flush dev $NIC_NAME
-sudo ip addr add $ip_addr/24 brd + dev br0
-# tap0 for src, tap1 for dst.
-sudo ip tuntap add dev tap0 mode tap multi_queue
-sudo ip link set dev tap0 up
-sudo ip link set tap0 master br0
-sudo ip tuntap add dev tap1 mode tap multi_queue
-sudo ip link set dev tap1 up
-sudo ip link set tap1 master br0
+
+# Move NIC into bridge
+sudo ip addr flush dev "$NIC"
+sudo ip link set "$NIC" master br0
+sudo ip link set "$NIC" up
+
+# Re-attach IP and default route to bridge
+sudo ip addr add "$IP_CIDR" dev br0
+sudo ip route add default via "$GW" dev br0
+
+# Create multi-queue tap devices and attach to bridge
+for tap in tap0 tap1; do
+    sudo ip tuntap add dev "$tap" mode tap multi_queue
+    sudo ip link set "$tap" up
+    sudo ip link set "$tap" master br0
+done
 
 # disable nic adaptive batching.
 # sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
