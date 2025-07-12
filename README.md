@@ -31,7 +31,7 @@ After this, you can run the migration:
 
 	# ./apps/controller shm src apps/vm-boot/redis.exp {vcpus} {memory} {vm_path} {fmsync frequency in us}
 	./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 500000
-	./apps/controller qemu-precopy dst 4 20G vm_dst.txt 1342177280B
+	./apps/controller shm dst 4 20G vm_dst.txt 1342177280B
 	./apps/controller shm backup 30 # run fmsync in background for 30s.
 	sudo kill -SIGUSR1 $(cat controller.pid) # start the fmsync.
 This example command will start a redis-server in the VM. To generate workloads, you need another server to run ycsb, with server ip `10.10.1.100`(VM_IP). You can also measure the redis's fmsync background overhead, check `auto-bench/write-through/redis_write_through.py`, it contains all the setups to test fmsync.
