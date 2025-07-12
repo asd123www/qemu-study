@@ -80,8 +80,8 @@ int listen_wrapper(char *addr, char *port) {
    
     // Binding newly created socket to given IP and verification
     if ((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) {
-        printf("socket bind failed...\n");
-        exit(0);
+        perror("socket bind failed...\n");
+        exit(1);
     }
    
     // Now server is ready to listen and verification

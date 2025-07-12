@@ -23,7 +23,7 @@ fi
 ARCH=$(uname -m)
 RELEASE=bullseye
 FEATURE=minimal
-SSH_PATH=/users/xiaoua
+SSH_PATH=/root/
 SEEK=358400
 PERF=false
 

@@ -1,137 +1,146 @@
-#!/usr/bin/env bash
-###############################################################################
-#  qemu_study_setup.sh – full setup & workload-launch for github.com/asd123www/qemu-study
-#  Tested on CloudLab r650, UBUNTU20-64-STD.  Run as root.
-###############################################################################
-set -euo pipefail
+#!/bin/bash
 
-### ---- USER-ADJUSTABLE PARAMETERS ------------------------------------------------
-DISK_DEV="/dev/sdb"          # raw NVMe device
-MNT_DIR="/mnt/mynvm"             # mountpoint for repo & shared storage
-REPO_PATH="${MNT_DIR}/qemu-study"
-
-SERVER_IP="10.10.1.3"            # this host’s IP (used as src/dst/backup_ip)
-VM_IP="10.10.1.100"              # guest VM IP (must match your network plan)
-GUEST_KERNEL_VER="5.15.0"        # value for KERNEL_VER in config.txt
-NIC_NAME="enp24s0f0"             # NIC that will host tap devices
-
-SRC_NUMA=0;  DST_NUMA=0;         CXL_NUMA=0
-SRC_CPUSET="0-3"; DST_CPUSET="4-7"
-NIC_INTERRUPT_CORE=0
-VHOST_CORE=1
-###############################################################################
-
-msg() { echo -e "\e[1m[$(date +%T)] $*\e[0m"; }
-
-
-
-###############################################################################
-# 1. One-time disk format & mount
-###############################################################################
-
-if ! mountpoint -q "${MNT_DIR}"; then
-  msg "Formatting and mounting ${DISK_DEV} → ${MNT_DIR}"
-  mkfs.ext4 -F "${DISK_DEV}"
-  mkdir -p "${MNT_DIR}"
-  mount "${DISK_DEV}" "${MNT_DIR}"
-  chmod 777 -R "${MNT_DIR}"
-
-  # >>> ADD THIS LINE <<<
-  grep -q "${MNT_DIR}" /etc/fstab || echo "${DISK_DEV} ${MNT_DIR} ext4 defaults,nofail 0 2" >> /etc/fstab
+# Check for argument: `qemu` is vanilla qemu, `main` is shm migration.
+if [ -z "$1" ]; then
+  echo "No QEMU branch was provided: \`qemu\` or \`main\`"
+  exit 1
+else
+  echo "QEMU branch: $1"
 fi
 
-###############################################################################
-# 2. Clone study repo (and, if needed, the fmsync kernel)
-###############################################################################
-if [[ ! -d "${REPO_PATH}" ]]; then
-  msg "Cloning qemu-study repo"
-  git clone https://github.com/asd123www/qemu-study.git "${REPO_PATH}"
-fi
-cd "${REPO_PATH}"
+source config.txt
+git config --global --add safe.directory '*'
+sudo git submodule init
+sudo git submodule update
 
-###############################################################################
-# 3. Ensure host is running the fmsync kernel – build + reboot if necessary
-###############################################################################
-if [[ "$(uname -r)" != *fmsync* ]]; then
-  msg "Building & installing fmsync host kernel"
-  git clone https://github.com/asd123www/linux.git linux-fmsync || true
-  sudo bash build_and_install_host_kernel.sh
-  msg "Rebooting into Linux 5.19.17-fmsync+ …"
-  sudo grub-reboot "Advanced options for Ubuntu>Ubuntu, with Linux 5.19.17-fmsync+"
-  sudo reboot
-fi
+sudo Eapt update
+sudo apt --fix-broken install -y
+sudo apt install openjdk-8-jdk -y
+sudo apt install maven -y
 
-###############################################################################
-# 4. Patch config.txt with local settings
-###############################################################################
-CONFIG_FILE="config.txt"
-msg "Patching ${CONFIG_FILE}"
-sed -i \
-  -e "s/^src_ip=.*/src_ip=${SERVER_IP}/" \
-  -e "s/^dst_ip=.*/dst_ip=${SERVER_IP}/" \
-  -e "s/^backup_ip=.*/backup_ip=${SERVER_IP}/" \
-  -e "s|^SHARED_STORAGE=.*|SHARED_STORAGE=${MNT_DIR}/shared|" \
-  -e "s/^KERNEL_VER=.*/KERNEL_VER=${GUEST_KERNEL_VER}/" \
-  -e "s/^NIC_NAME=.*/NIC_NAME=${NIC_NAME}/" \
-  -e "s/^VM_IP=.*/VM_IP=${VM_IP}/" \
-  -e "s/^SRC_NUMA=.*/SRC_NUMA=${SRC_NUMA}/" \
-  -e "s/^DST_NUMA=.*/DST_NUMA=${DST_NUMA}/" \
-  -e "s/^CXL_NUMA=.*/CXL_NUMA=${CXL_NUMA}/" \
-  -e "s/^SRC_CPUSET=.*/SRC_CPUSET=${SRC_CPUSET}/" \
-  -e "s/^DST_CPUSET=.*/DST_CPUSET=${DST_CPUSET}/" \
-  -e "s/^NIC_INTERRUPT_CORE=.*/NIC_INTERRUPT_CORE=${NIC_INTERRUPT_CORE}/" \
-  -e "s/^VHOST_CORE=.*/VHOST_CORE=${VHOST_CORE}/" \
-  "${CONFIG_FILE}"
+# build ycsb
+cd apps/ycsb
+sudo mvn -pl site.ycsb:redis-binding -am clean package
+sudo mvn -pl site.ycsb:memcached-binding -am clean package
+cd ../..
 
-###############################################################################
-# 5. System tuning (THP, CPU scaling, pinning helpers)
-###############################################################################
-msg "Disabling THP, CPU scaling & hyper-threading"
-sudo bash scripts/disable_THP.sh never
-sudo bash scripts/disable_cpu_scale.sh
+# build gapbs
+cd apps/gapbs/gapbs
+make
+# make bench-graphs
+cd ../../..
 
-###############################################################################
-# 6. Build QEMU, helper tools, and prepare guest image
-###############################################################################
-if [[ ! -d qemu-build ]]; then
-  msg "Building qemu-master (branch: debug)"
-  sudo bash scripts/setup.sh debug
-fi
+# build voltdb
+cd apps/voltdb
+sudo apt install docker.io -y
+sudo docker build . -t voltdb
+sudo docker create --name voltdb-run voltdb
+docker cp voltdb-run:/opt/voltdb .
+cd ../..
 
-if [[ ! -f kernel-image/focal-server-cloudimg-amd64.img ]]; then
-  msg "Creating guest VM image"
-  ( cd kernel-image && sudo bash create-image.sh )
-fi
+# build wrk
+sudo apt install lua-socket luarocks -y
+sudo luarocks install luasocket
+cd apps/wrk
+sudo make -j 10
+sudo cp wrk /usr/local/bin
+cd ../..
 
-###############################################################################
-# 7. Install customized Redis inside the guest
-###############################################################################
-if ! grep -q "Ready to accept connections" vm_src.txt 2>/dev/null; then
-  msg "Booting VM and installing Redis (may take several minutes)"
-  ./apps/controller shm src apps/vm-boot/setup_redis.exp 4 16G vm_src.txt 400000 || {
-      msg "setup_redis failed – auto-clean & retry"
-      sudo bash scripts/my_kill.sh
-      ./apps/controller shm src apps/vm-boot/setup_redis.exp 4 16G vm_src.txt 400000
-  }
+# qemu dependency.
+ggsudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
+sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
+
+# recommended.
+# sudo apt-get install git-email -y
+sudo apt-get install libaio-dev libbluetooth-dev libcapstone-dev libbrlapi-dev libbz2-dev -y
+sudo apt-get install libcap-ng-dev libcurl4-gnutls-dev libgtk-3-dev -y
+sudo apt-get install libibverbs-dev libjpeg8-dev libncurses5-dev libnuma-dev -y
+sudo apt-get install librbd-dev librdmacm-dev libsasl2-dev libsdl2-dev libseccomp-dev libsnappy-dev libssh-dev -y
+sudo apt-get install libvde-dev libvdeplug-dev libvte-2.91-dev libxen-dev liblzo2-dev valgrind xfslibs-dev libnfs-dev libiscsi-dev expect -y
+
+cd apps/stress-ng
+git checkout tags/V0.16.00
+# sudo make -j 4
+# sudo make install
+cd ../..
+
+# check kvm support.
+if [ $(egrep -c '(vmx|svm)' /proc/cpuinfo) -gt 0 ]; then
+    echo "KVM is supported"
+else 
+    echo "KVM is supported"
+    exit 1
 fi
 
-###############################################################################
-# 8. Launch workload & live-migration
-###############################################################################
-msg "Starting source VM with Redis + background fmsync"
-./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 500000 &
+if lsmod | grep kvm; then 
+    echo "KVM module loaded"
+else 
+    # sudo modprobe kvm-intel
+    # sudo modprobe kvm-amd
+    echo "KVM module not loaded"
+fi
 
-sleep 5
-msg "Starting destination VM (pre-copy mode)"
-./apps/controller qemu-precopy dst 4 20G vm_dst.txt 1342177280B &
+cd qemu-master
+git checkout $1
+./configure --target-list=x86_64-softmmu --enable-kvm --enable-slirp
+make -j 10
+sudo make install
+cd ..
 
-sleep 5
-msg "Launching backup fmsync for 30 s"
-./apps/controller shm backup 30 &
+sudo apt install libslirp0 -y
 
-sleep 5
-msg "Triggering cut-over (SIGUSR1 to controller)"
-sudo kill -SIGUSR1 "$(cat controller.pid)"
+# compile Linux code.
+echo "Use Linux-$KERNEL_VER"
+wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
+tar xvf linux-$KERNEL_VER.tar.xz
+cd linux-$KERNEL_VER
+make defconfig
+make kvm_guest.config
+CONFIG_KVM_GUEST=y
+CONFIG_HAVE_KVM=y
+CONFIG_PTP_1588_CLOCK_KVM=y
+make olddefconfig
+./scripts/config -e MEMCG
+make -j 10
+cd ..
+# creating an image for the kernelPermalink.
+sudo apt-get install debootstrap
+# cd kernel-image
+# chmod +x create-image.sh
+# sudo ./create-image.sh
+# initialize apps.
+cd apps
+gcc controller.c -o controller -O3
+cd redis
+sudo bash setup_redis_client.sh
+cd ../../
 
-msg "=== All steps complete. ==="
-echo "Run YCSB on another host against Redis @ ${VM_IP} to generate load."
+# Get IP with CIDR (e.g., 130.127.133.241/22)
+ip_cidr=$(ip -4 -o addr show "$NIC_NAME" | awk '{print $4}')
+
+# Get default gateway
+gw=$(ip route | awk '/default/ {print $3}')
+
+# Create bridge if it doesn't exist
+sudo ip link add br0 type bridge 2>/dev/null || true
+sudo ip link set br0 up
+
+# Flush IP from NIC and attach to bridge
+sudo ip addr flush dev "$NIC_NAME"
+sudo ip link set "$NIC_NAME" master br0
+sudo ip link set "$NIC_NAME" up
+sudo ip addr add "$ip_cidr" dev br0
+sudo ip route add default via "$gw" dev br0 2>/dev/null || true
+
+# tap0 for src, tap1 for dst.
+for tap in tap0 tap1; do
+    sudo ip tuntap add dev "$tap" mode tap multi_queue 2>/dev/null || true
+    sudo ip link set "$tap" up
+    sudo ip link set "$tap" master br0
+done
+
+# disable nic adaptive batching.
+# sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+# sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+# sudo ethtool -C tap0 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
+# sudo ethtool -C tap1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
