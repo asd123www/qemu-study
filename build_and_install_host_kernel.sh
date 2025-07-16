@@ -19,13 +19,9 @@ BASE_DIR=`dirname $SCRIPT_PATH`
 LINUX_PATH="$BASE_DIR/linux"
 
 pushd $LINUX_PATH
-if [ ! -e "Makefile" ]; then
-    git submodule init
-    git submodule update
-fi
 
 # Cleanup the previous build
-rm -f ../linux-* 2> /dev/null
+#rm -f ../linux-* 2> /dev/null
 make distclean
 
 # Configure kernel
@@ -95,7 +91,7 @@ fi
 
 # Compile kernel
 printf "Compiling kernel...\n"
-make deb-pkg -j8
+make deb-pkg -j64
 popd
 
 # Install kernel
@@ -112,3 +108,7 @@ fi
 printf "Memstrata kernel is installed. To boot into Memstrata kernel, please run:\n"
 printf "    sudo grub-reboot \"Advanced options for Ubuntu>Ubuntu, with Linux 5.19.17-fmsync+\"\n"
 printf "    sudo reboot\n"
+
+
+#sudo grub-reboot "Advanced options for Ubuntu>Ubuntu, with Linux 5.19.17-fmsync+"
+#sudo reboot

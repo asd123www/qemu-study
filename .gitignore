@@ -59,3 +59,5 @@ apps/controller
 apps/voltdb/voltdb
 *-write-through
 debug/*
+
+*.dat
