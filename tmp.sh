@@ -67,34 +67,5 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
-    sleep 30
-
-    { ./redis_run.sh "$wkld" | tee "redis_result_wkld_${wkld}.dat"; } &
-    redis_run_pid=$!
-    sleep 30
-
-    [[ -f controller.pid ]] || { echo "controller.pid missing"; ./scripts/my_kill.sh; exit 1; }
-    sudo kill -SIGUSR1 "$(cat controller.pid)"
-
-    sleep 40
-
-    if ! wait_for_migration "$src_pid"; then
-        echo "Migration timed out."
-        ./scripts/my_kill.sh
-        continue
-    fi
-
-    vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
-    [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
-    sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 1 0 >"/tmp/promo_${wkld}.log" 2>&1 &
-    promo_pid=$!
-
-    sleep 300  # workload run time
-
-    # -------- Teardown --------------------------------------------------------
-    ./scripts/my_kill.sh
-    sudo kill "$promo_pid" 2>/dev/null || true
-    wait "$redis_run_pid" 2>/dev/null || true
-    sleep 300
 done
 

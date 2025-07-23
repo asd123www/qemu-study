@@ -47,7 +47,7 @@ sudo cp wrk /usr/local/bin
 cd ../..
 
 # qemu dependency.
-ggsudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
+sudo apt-get install linux-generic libelf-dev socat redis-server redis libboost-all-dev pip -y
 sudo apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev python3-venv ninja-build flex bison debootstrap -y
 
 # recommended.

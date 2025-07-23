@@ -61,3 +61,6 @@ apps/voltdb/voltdb
 debug/*
 
 *.dat
+vm_src.txt
+vm_dst.txt
+*.pid
