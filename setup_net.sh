@@ -1,5 +1,5 @@
 #!/bin/bash
-NIC_NAME=enp24s0f0
+NIC_NAME=enp24s0f0np0
 
 sudo bash scripts/disable_THP.sh always
 sudo bash scripts/disable_cpu_scale.sh
