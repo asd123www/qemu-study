@@ -2,8 +2,8 @@
 set -euo pipefail
 set -x
 
-WKLD_LIST=(a) # b c d e f)
-PING_IP=130.127.133.254   # IP to validate VM network
+WKLD_LIST=(a b c d e f)
+PING_IP=10.10.20.254   # IP to validate VM network
 PING_RETRIES=5            # max ping attempts before giving up
 MIGRATION_TIMEOUT=60      # seconds to wait for new qemu-system PID
 
@@ -14,7 +14,7 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 500000
+        ./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 100000
 }
 
 wait_for_ping() {
@@ -61,15 +61,16 @@ for wkld in "${WKLD_LIST[@]}"; do
     # -------- Launch destination VM and wait for migration --------------------
     screen -dmS "$DST_SESSION" \
         ./apps/controller shm dst 4 20G vm_dst.txt 1342177280B
-
+    sleep 10
     # -------- Optional backup VM ---------------------------------------------
-    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
+#    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 30 > fm3_redis_downtime_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
     sleep 30
 
-    { ./redis_run.sh "$wkld" | tee "redis_result_wkld_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "fm3_redis_perf_wkld_${wkld}.dat"; } &
     redis_run_pid=$!
     sleep 30
 
@@ -86,7 +87,7 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
     [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
-    sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 1 0 >"/tmp/promo_${wkld}.log" 2>&1 &
+    sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
     promo_pid=$!
 
     sleep 300  # workload run time

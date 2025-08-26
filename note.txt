@@ -1,0 +1,5 @@
+#remove waiting time on boot;
+
+sudo mkdir -p /etc/systemd/system/networking.service.d/
+sudo bash -c 'echo -e "[Service]\nTimeoutStartSec=1sec" > /etc/systemd/system/networking.service.d/timeout.conf'
+sudo systemctl daemon-reload

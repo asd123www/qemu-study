@@ -3,8 +3,8 @@
 # Use of this source code is governed by Apache 2 LICENSE that can be found in the LICENSE file.
 
 # clear the old image.
-rm -f b*
-sudo rm -rf chroot
+#rm -f b*
+#sudo rm -rf chroot
 
 # create-image.sh creates a minimal Debian Linux image suitable for syzkaller.
 
@@ -23,7 +23,7 @@ fi
 ARCH=$(uname -m)
 RELEASE=bullseye
 FEATURE=minimal
-SSH_PATH=/root/
+SSH_PATH="$HOME"
 SEEK=358400
 PERF=false
 
@@ -134,8 +134,8 @@ if [ $FEATURE = "full" ]; then
 fi
 
 sudo cat $SSH_PATH/.ssh/id_rsa.pub
-sudo rm -rf $DIR
-sudo mkdir -p $DIR
+#sudo rm -rf $DIR
+#sudo mkdir -p $DIR
 sudo chmod 0755 $DIR
 
 # 1. debootstrap stage
@@ -178,18 +178,18 @@ sudo mkdir -p $DIR/root/.ssh/
 sudo cat $SSH_PATH/.ssh/id_rsa.pub | sudo tee $DIR/root/.ssh/authorized_keys
 
 # asd123www: cp to vm disk since we don't have network to the internet...
-sudo cp -r /usr/lib/jvm/* $DIR/usr/lib/jvm/
-sudo mkdir -p $DIR/root/redis/
-sudo cp ../apps/redis/redis-server.conf $DIR/root/redis/
-sudo cp -r ../apps/redis/redis-7.2.4 $DIR/root/redis/
-sudo cp -r ../apps/graph500/ $DIR/root/
-sudo cp -r ../apps/stress-ng/ $DIR/root/
-sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
-sudo cp -r ../apps/voltdb/voltdb $DIR/root/voltdb
-sudo cp -r ../apps/nginx $DIR/root/nginx
+#sudo cp -r /usr/lib/jvm/* $DIR/usr/lib/jvm/
+#sudo mkdir -p $DIR/root/redis/
+#sudo cp ../apps/redis/redis-server.conf $DIR/root/redis/
+#sudo cp -r ../apps/redis/redis-7.2.4 $DIR/root/redis/
+#sudo cp -r ../apps/graph500/ $DIR/root/
+#sudo cp -r ../apps/stress-ng/ $DIR/root/
+#sudo cp -r ../apps/mlc_v3.11a $DIR/root/mlc_v3.11a/
+#sudo cp -r ../apps/voltdb/voltdb $DIR/root/voltdb
+#sudo cp -r ../apps/nginx $DIR/root/nginx
 sudo cp -r ../apps/gapbs $DIR/root/
-sudo cp -r ../apps/spark $DIR/root/
-sudo cp -r ../apps/random-write/ $DIR/root/
+#sudo cp -r ../apps/spark $DIR/root/
+#sudo cp -r ../apps/random-write/ $DIR/root/
 
 # Add perf support
 if [ $PERF = "true" ]; then

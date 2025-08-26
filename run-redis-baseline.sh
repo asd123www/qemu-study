@@ -2,7 +2,7 @@
 set -euo pipefail
 set -x
 
-WKLD_LIST=(a) # b c d e f)
+WKLD_LIST=(a b c d e f)
 PING_IP=10.10.20.254   # IP to validate VM network
 PING_RETRIES=5            # max ping attempts before giving up
 MIGRATION_TIMEOUT=60      # seconds to wait for new qemu-system PID
@@ -14,14 +14,14 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 100000
+        ./apps/controller qemu-precopy src apps/vm-boot/redis.exp 4 100G vm_src.txt 500000
 }
 
 wait_for_ping() {
     local tries=0
     until ping -c1 -W2 "$PING_IP" >/dev/null 2>&1; do
         ((tries++))
-       [[ $tries -ge $PING_RETRIES ]] && return 1
+        [[ $tries -ge $PING_RETRIES ]] && return 1
         sleep 20
     done
 }
@@ -60,12 +60,42 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     # -------- Launch destination VM and wait for migration --------------------
     screen -dmS "$DST_SESSION" \
-        ./apps/controller shm dst 4 20G vm_dst.txt 1342177280B
+        ./apps/controller qemu-precopy dst 4 100G vm_dst.txt 1342177280B
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
-    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
+#    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller qemu-precopy backup 30 > precopy_redis_downtime_100G_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
+    sleep 30
+
+    { ./redis_run.sh "$wkld" | tee "precopy_redis_perf_100G_${wkld}.dat"; } &
+    redis_run_pid=$!
+    sleep 30
+
+    [[ -f controller.pid ]] || { echo "controller.pid missing"; ./scripts/my_kill.sh; exit 1; }
+    sudo kill -SIGUSR1 "$(cat controller.pid)"
+
+    sleep 40
+
+    if ! wait_for_migration "$src_pid"; then
+        echo "Migration timed out."
+        ./scripts/my_kill.sh
+        continue
+    fi
+
+    vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
+    [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
+    sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
+    promo_pid=$!
+
+    sleep 300  # workload run time
+
+    # -------- Teardown --------------------------------------------------------
+    ./scripts/my_kill.sh
+    sudo kill "$promo_pid" 2>/dev/null || true
+    wait "$redis_run_pid" 2>/dev/null || true
+    sleep 300
 done
 

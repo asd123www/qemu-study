@@ -1,13 +1,5 @@
 #!/bin/bash
 
-# Check for argument: `qemu` is vanilla qemu, `main` is shm migration.
-if [ -z "$1" ]; then
-  echo "No QEMU branch was provided: \`qemu\` or \`main\`"
-  exit 1
-else
-  echo "QEMU branch: $1"
-fi
-
 source config.txt
 git config --global --add safe.directory '*'
 sudo git submodule init
@@ -33,7 +25,7 @@ cd ../../..
 # build voltdb
 cd apps/voltdb
 sudo apt install docker.io -y
-sudo docker build . -t voltdb
+docker build --network=host . -t voltdb
 sudo docker create --name voltdb-run voltdb
 docker cp voltdb-run:/opt/voltdb .
 cd ../..
@@ -80,15 +72,11 @@ else
     echo "KVM module not loaded"
 fi
 
-cd qemu-master
-git checkout $1
-./configure --target-list=x86_64-softmmu --enable-kvm --enable-slirp
-make -j 10
-sudo make install
-cd ..
+#cd qemu-master
+#./setup.sh
+#cd ..
 
 sudo apt install libslirp0 -y
-
 # compile Linux code.
 echo "Use Linux-$KERNEL_VER"
 wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VER.tar.xz
@@ -114,33 +102,3 @@ gcc controller.c -o controller -O3
 cd redis
 sudo bash setup_redis_client.sh
 cd ../../
-
-# Get IP with CIDR (e.g., 130.127.133.241/22)
-ip_cidr=$(ip -4 -o addr show "$NIC_NAME" | awk '{print $4}')
-
-# Get default gateway
-gw=$(ip route | awk '/default/ {print $3}')
-
-# Create bridge if it doesn't exist
-sudo ip link add br0 type bridge 2>/dev/null || true
-sudo ip link set br0 up
-
-# Flush IP from NIC and attach to bridge
-sudo ip addr flush dev "$NIC_NAME"
-sudo ip link set "$NIC_NAME" master br0
-sudo ip link set "$NIC_NAME" up
-sudo ip addr add "$ip_cidr" dev br0
-sudo ip route add default via "$gw" dev br0 2>/dev/null || true
-
-# tap0 for src, tap1 for dst.
-for tap in tap0 tap1; do
-    sudo ip tuntap add dev "$tap" mode tap multi_queue 2>/dev/null || true
-    sudo ip link set "$tap" up
-    sudo ip link set "$tap" master br0
-done
-
-# disable nic adaptive batching.
-# sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
-# sudo ethtool -C $NIC_NAME adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
-# sudo ethtool -C tap0 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
-# sudo ethtool -C tap1 adaptive-rx off adaptive-tx off rx-frames 1 rx-usecs 0  tx-frames 1 tx-usecs 0
