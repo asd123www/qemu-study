@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
         printf("remaining=%zu pages on node %d\n", remaining, slow);
         fflush(stdout);
         if (!remaining) break;
-        usleep(20000);                           /* 20 ms window */
+        usleep(2000);                           /* 20 ms window */
     }
 
     printf("All pages on node %d migrated to %d. Done.\n", slow, fast);

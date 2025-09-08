@@ -14,7 +14,7 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 100000
+        ./apps/controller shm src apps/vm-boot/redis.exp 4 100G vm_src.txt 100000
 }
 
 wait_for_ping() {
@@ -60,24 +60,24 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     # -------- Launch destination VM and wait for migration --------------------
     screen -dmS "$DST_SESSION" \
-        ./apps/controller shm dst 4 20G vm_dst.txt 1342177280B
+        ./apps/controller shm dst 4 100G vm_dst.txt 1342177280B
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
 #    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 30 > fm4_redis_downtime_${wkld}.dat 2>&1"
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 150 > fm6_redis_downtime_100G_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
-    sleep 30
+    sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "fm4_redis_perf_wkld_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "fm6_redis_perf_wkld_100G_${wkld}.dat"; } &
     redis_run_pid=$!
-    sleep 30
+    sleep 10
 
     [[ -f controller.pid ]] || { echo "controller.pid missing"; ./scripts/my_kill.sh; exit 1; }
     sudo kill -SIGUSR1 "$(cat controller.pid)"
 
-    sleep 40
+    sleep 140
 
     if ! wait_for_migration "$src_pid"; then
         echo "Migration timed out."
@@ -87,15 +87,15 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
     [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
-    sudo ./promo_hot "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
+    sudo ./promo_hot_new_mt "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
     promo_pid=$!
 
     sleep 300  # workload run time
 
     # -------- Teardown --------------------------------------------------------
     ./scripts/my_kill.sh
-    sudo kill "$promo_pid" 2>/dev/null || true
     wait "$redis_run_pid" 2>/dev/null || true
-    sleep 300
+    sudo kill "$promo_pid" 2>/dev/null || true
+    sleep 10
 done
 

@@ -64,20 +64,20 @@ for wkld in "${WKLD_LIST[@]}"; do
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
 #    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 30 > fm3_redis_downtime_${wkld}.dat 2>&1"
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 30 > fm2_redis_downtime_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
-    sleep 30
+    sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "fm3_redis_perf_wkld_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "fm2_redis_perf_wkld_${wkld}.dat"; } &
     redis_run_pid=$!
-    sleep 30
+    sleep 10
 
     [[ -f controller.pid ]] || { echo "controller.pid missing"; ./scripts/my_kill.sh; exit 1; }
     sudo kill -SIGUSR1 "$(cat controller.pid)"
 
-    sleep 40
+    sleep 20
 
     if ! wait_for_migration "$src_pid"; then
         echo "Migration timed out."
@@ -90,12 +90,12 @@ for wkld in "${WKLD_LIST[@]}"; do
     sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
     promo_pid=$!
 
-    sleep 300  # workload run time
+    sleep 100  # workload run time
 
-    # -------- Teardown --------------------------------------------------------
     ./scripts/my_kill.sh
-    sudo kill "$promo_pid" 2>/dev/null || true
     wait "$redis_run_pid" 2>/dev/null || true
-    sleep 300
+    # -------- Teardown --------------------------------------------------------
+    sudo kill "$promo_pid" 2>/dev/null || true
+    sleep 10
 done
 

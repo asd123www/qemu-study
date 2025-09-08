@@ -14,7 +14,7 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 100000
+        ./apps/controller shm src apps/vm-boot/redis.exp 4 20G vm_src.txt 50000
 }
 
 wait_for_ping() {
@@ -63,7 +63,7 @@ for wkld in "${WKLD_LIST[@]}"; do
         ./apps/controller shm dst 4 20G vm_dst.txt 1342177280B
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
-    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
+    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 10
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"

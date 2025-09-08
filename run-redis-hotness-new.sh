@@ -14,7 +14,7 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller qemu-precopy src apps/vm-boot/redis.exp 4 100G vm_src.txt 500000
+        ./apps/controller shm src apps/vm-boot/redis.exp 4 100G vm_src.txt 100000
 }
 
 wait_for_ping() {
@@ -60,17 +60,17 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     # -------- Launch destination VM and wait for migration --------------------
     screen -dmS "$DST_SESSION" \
-        ./apps/controller qemu-precopy dst 4 100G vm_dst.txt 1342177280B
+        ./apps/controller shm dst 4 100G vm_dst.txt 1342177280B
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
 #    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller qemu-precopy backup 150 > precopy_redis_downtime_100G_${wkld}.dat 2>&1"
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 150 > fm5_redis_downtime_100G_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
     sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "precopy_redis_perf_100G_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "fm5_redis_perf_100G_wkld_${wkld}.dat"; } &
     redis_run_pid=$!
     sleep 10
 
@@ -85,11 +85,17 @@ for wkld in "${WKLD_LIST[@]}"; do
         continue
     fi
 
+    vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
+    [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
+    sudo ./promo_hot_new "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
+    promo_pid=$!
+
     sleep 300  # workload run time
 
+    # -------- Teardown --------------------------------------------------------
     ./scripts/my_kill.sh
     wait "$redis_run_pid" 2>/dev/null || true
-    # -------- Teardown --------------------------------------------------------
+    sudo kill "$promo_pid" 2>/dev/null || true
     sleep 10
 done
 
