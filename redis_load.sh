@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo bash apps/workload_scripts/redis/load_ycsb.sh workload${1} 1 5000000 12
+sudo bash apps/workload_scripts/redis/load_ycsb.sh workload${1} 1 30000000 20

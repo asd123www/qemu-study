@@ -2,10 +2,10 @@
 set -euo pipefail
 set -x
 
-WKLD_LIST=(a b c d e f)
+WKLD_LIST=(a) # b c d e f)
 PING_IP=10.10.20.254   # IP to validate VM network
 PING_RETRIES=5            # max ping attempts before giving up
-MIGRATION_TIMEOUT=60      # seconds to wait for new qemu-system PID
+MIGRATION_TIMEOUT=100      # seconds to wait for new qemu-system PID
 
 trap 'pkill -f "^promo " 2>/dev/null || true
       screen -wipe >/dev/null 2>&1 || true' EXIT
@@ -14,7 +14,7 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller shm src apps/vm-boot/redis.exp 4 60G vm_src.txt 100000
+        ./apps/controller qemu-precopy src apps/vm-boot/redis.exp 4 60G vm_src.txt 500000
 }
 
 wait_for_ping() {
@@ -49,6 +49,7 @@ for wkld in "${WKLD_LIST[@]}"; do
     screen -S "$SRC_SESSION" -X quit 2>/dev/null || true
     screen -S "$DST_SESSION" -X quit 2>/dev/null || true
     screen -S "$BAK_SESSION" -X quit 2>/dev/null || true
+    rm -f /dev/shm/my_shared_memory
 
     # -------- Launch source VM with network verification ----------------------
     until launch_src_vm "$SRC_SESSION" && wait_for_ping; do
@@ -58,19 +59,21 @@ for wkld in "${WKLD_LIST[@]}"; do
     done
     src_pid=$(pgrep qemu-system | head -n1)
 
-    # -------- Launch destination VM and wait for migration --------------------
-    screen -dmS "$DST_SESSION" \
-        ./apps/controller shm dst 4 60G vm_dst.txt 1342177280B
-    sleep 10
-    # -------- Optional backup VM ---------------------------------------------
-#    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 100 > fm2_redis_downtime_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
     sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "fm2_redis_perf_wkld_${wkld}.dat"; } &
+    # -------- Launch destination VM and wait for migration --------------------
+    screen -dmS "$DST_SESSION" \
+        ./apps/controller qemu-precopy dst 4 60G vm_dst.txt 1342177280B
+    sleep 20
+    # -------- Optional backup VM ---------------------------------------------
+#    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
+
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller qemu-precopy backup 100 > qemu-precopy+cxl_redis_downtime_${wkld}.dat 2>&1"
+
+    { ./redis_run.sh "$wkld" | tee "qemu-precopy+cxl_redis_perf_${wkld}.dat"; } &
     redis_run_pid=$!
     sleep 10
 
@@ -85,17 +88,11 @@ for wkld in "${WKLD_LIST[@]}"; do
         continue
     fi
 
-    vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
-    [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
-    sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
-    promo_pid=$!
-
-    sleep 100  # workload run time
+    sleep 200  # workload run time
 
     ./scripts/my_kill.sh
     wait "$redis_run_pid" 2>/dev/null || true
     # -------- Teardown --------------------------------------------------------
-    sudo kill "$promo_pid" 2>/dev/null || true
     sleep 10
 done
 

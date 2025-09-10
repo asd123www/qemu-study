@@ -64,13 +64,13 @@ for wkld in "${WKLD_LIST[@]}"; do
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
 #    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 100 > fm2_redis_downtime_${wkld}.dat 2>&1"
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 100 > fm2+syncmt_redis_downtime_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
     sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "fm2_redis_perf_wkld_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "fm2+syncmt_redis_perf_wkld_${wkld}.dat"; } &
     redis_run_pid=$!
     sleep 10
 

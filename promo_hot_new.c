@@ -25,7 +25,7 @@
 #define MPOL_MF_MOVE_ALL  (1<<2)
 #endif
 
-#define NTHREADS              1
+#define NTHREADS              16
 #define REM_NTHREADS          1
 #define MP_BATCH              1024      /* Optimal batch size */
 #define META_STATE_LENGTH     (1ULL<<20)    

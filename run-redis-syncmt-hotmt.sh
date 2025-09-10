@@ -64,13 +64,13 @@ for wkld in "${WKLD_LIST[@]}"; do
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
 #    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 100 > fm2_redis_downtime_${wkld}.dat 2>&1"
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller shm backup 100 > fm2+syncmt+hotmt_redis_downtime_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
     sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "fm2_redis_perf_wkld_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "fm2+syncmt+hotmt_redis_perf_wkld_${wkld}.dat"; } &
     redis_run_pid=$!
     sleep 10
 
@@ -87,7 +87,7 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     vm_pid=$(pgrep qemu-system | grep -v "$src_pid" | head -n1)
     [[ -n $vm_pid ]] || { echo "qemu-system PID not found"; ./scripts/my_kill.sh; exit 1; }
-    sudo ./promo "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
+    sudo ./promo_hot_new_mt "$vm_pid" /dev/shm/my_shared_memory 2 0 >"/tmp/promo_${wkld}.log" 2>&1 &
     promo_pid=$!
 
     sleep 100  # workload run time

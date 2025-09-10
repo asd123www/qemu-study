@@ -14,7 +14,7 @@ trap 'pkill -f "^promo " 2>/dev/null || true
 launch_src_vm() {
     local session=$1
     screen -dmS "$session" \
-        ./apps/controller qemu-precopy src apps/vm-boot/redis.exp 4 100G vm_src.txt 500000
+        ./apps/controller qemu-precopy src apps/vm-boot/redis.exp 4 60G vm_src.txt 500000
 }
 
 wait_for_ping() {
@@ -60,24 +60,24 @@ for wkld in "${WKLD_LIST[@]}"; do
 
     # -------- Launch destination VM and wait for migration --------------------
     screen -dmS "$DST_SESSION" \
-        ./apps/controller qemu-precopy dst 4 100G vm_dst.txt 1342177280B
+        ./apps/controller qemu-precopy dst 4 60G vm_dst.txt 1342177280B
     sleep 10
     # -------- Optional backup VM ---------------------------------------------
 #    screen -dmS "$BAK_SESSION" ./apps/controller shm backup 30
-    screen -dmS "$BAK_SESSION" bash -c "./apps/controller qemu-precopy backup 150 > precopy_redis_downtime_100G_${wkld}.dat 2>&1"
+    screen -dmS "$BAK_SESSION" bash -c "./apps/controller qemu-precopy backup 100 > qemu-precopy_redis_downtime_${wkld}.dat 2>&1"
 
     # -------- Workload --------------------------------------------------------
     ./redis_load.sh "$wkld"
     sleep 10
 
-    { ./redis_run.sh "$wkld" | tee "precopy_redis_perf_100G_${wkld}.dat"; } &
+    { ./redis_run.sh "$wkld" | tee "qemu-precopy_redis_perf_${wkld}.dat"; } &
     redis_run_pid=$!
     sleep 10
 
     [[ -f controller.pid ]] || { echo "controller.pid missing"; ./scripts/my_kill.sh; exit 1; }
     sudo kill -SIGUSR1 "$(cat controller.pid)"
 
-    sleep 140
+    sleep 90
 
     if ! wait_for_migration "$src_pid"; then
         echo "Migration timed out."
@@ -85,7 +85,7 @@ for wkld in "${WKLD_LIST[@]}"; do
         continue
     fi
 
-    sleep 300  # workload run time
+    sleep 100  # workload run time
 
     ./scripts/my_kill.sh
     wait "$redis_run_pid" 2>/dev/null || true
